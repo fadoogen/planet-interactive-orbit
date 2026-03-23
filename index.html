@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planet Labs — Orbital Constellation Viewer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#0a0a0f;color:#e0e0e8;font-family:'DM Sans',sans-serif;overflow:hidden;height:100vh;width:100vw;}
+  canvas{display:block;}
+  #loading{position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity 1s;}
+  #loading.done{opacity:0;pointer-events:none;}
+  #loading h1{font-family:'Space Mono',monospace;font-size:13px;letter-spacing:4px;text-transform:uppercase;color:#9ca3af;margin-bottom:12px;}
+  #loading .bar{width:200px;height:2px;background:#1f1f2e;border-radius:2px;overflow:hidden;}
+  #loading .bar-fill{height:100%;background:#6366f1;width:0%;transition:width 0.3s;}
+  #ui-overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;}
+  #header{position:absolute;top:28px;left:36px;pointer-events:auto;}
+  #header h1{font-family:'Space Mono',monospace;font-size:13px;letter-spacing:4px;text-transform:uppercase;color:#9ca3af;margin-bottom:4px;}
+  #header h2{font-family:'DM Sans',sans-serif;font-size:28px;font-weight:300;color:#f0f0f5;letter-spacing:-0.5px;}
+  #controls{position:absolute;top:28px;right:36px;pointer-events:auto;display:flex;flex-direction:column;gap:6px;min-width:240px;}
+  .sat-toggle{display:flex;align-items:center;gap:12px;padding:10px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;cursor:pointer;transition:all 0.3s ease;user-select:none;backdrop-filter:blur(12px);}
+  .sat-toggle:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.15);}
+  .sat-toggle.off{opacity:0.35;}.sat-toggle.off .sat-dot{background:#444!important;box-shadow:none!important;}
+  .sat-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:all 0.3s ease;}
+  .sat-info{flex:1;display:flex;flex-direction:column;}
+  .sat-name{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#f0f0f5;}
+  .sat-meta{font-size:10px;color:#6b7280;margin-top:1px;}
+  .sat-count{font-family:'Space Mono',monospace;font-size:11px;color:#6b7280;}
+  #info-panel{position:absolute;bottom:28px;left:36px;pointer-events:auto;display:flex;gap:32px;}
+  .info-block{display:flex;flex-direction:column;}
+  .info-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#4b5563;margin-bottom:3px;}
+  .info-value{font-size:14px;font-weight:300;color:#d1d5db;}
+  #speed-control{position:absolute;bottom:28px;right:36px;pointer-events:auto;display:flex;align-items:center;gap:12px;}
+  #speed-control label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#4b5563;}
+  #speed-slider{-webkit-appearance:none;width:100px;height:2px;background:#333;border-radius:2px;outline:none;}
+  #speed-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#6366f1;cursor:pointer;}
+  #speed-val{font-family:'Space Mono',monospace;font-size:11px;color:#6b7280;min-width:30px;}
+  #tooltip{position:absolute;display:none;background:rgba(10,10,20,0.92);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:12px 16px;pointer-events:none;backdrop-filter:blur(16px);max-width:260px;z-index:20;}
+  #tooltip .tt-name{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:1px;margin-bottom:6px;}
+  #tooltip .tt-detail{font-size:11px;color:#9ca3af;line-height:1.5;}
+</style>
+</head>
+<body>
+<div id="loading">
+  <h1>Loading Earth Data</h1>
+  <div class="bar"><div class="bar-fill" id="load-bar"></div></div>
+</div>
+<canvas id="c"></canvas>
+<div id="ui-overlay">
+  <div id="header"><h1>Planet Labs</h1><h2>Satellite Constellation Viewer</h2></div>
+  <div id="controls"></div>
+  <div id="info-panel">
+    <div class="info-block"><span class="info-label">Active Sats</span><span class="info-value" id="sat-total">0</span></div>
+    <div class="info-block"><span class="info-label">Orbit Type</span><span class="info-value">Sun-Synchronous</span></div>
+    <div class="info-block"><span class="info-label">Drag to Rotate</span><span class="info-value">Scroll to Zoom</span></div>
+  </div>
+  <div id="speed-control"><label>Speed</label><input type="range" id="speed-slider" min="0.1" max="5" step="0.1" value="1"><span id="speed-val">1×</span></div>
+  <div id="tooltip"><div class="tt-name"></div><div class="tt-detail"></div></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  LOAD NATURAL EARTH 50m LAND TOPOJSON → DRAW TO CANVAS TEXTURE
+// ═══════════════════════════════════════════════════════════════
+const loadBar = document.getElementById('load-bar');
+const loadingEl = document.getElementById('loading');
+
+async function generateEarthTexture() {
+  loadBar.style.width = '10%';
+  const W = 2048, H = 1024;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+
+  // Ocean gradient
+  const og = ctx.createLinearGradient(0, 0, 0, H);
+  og.addColorStop(0, '#0e1e40'); og.addColorStop(0.1, '#0c1c3a');
+  og.addColorStop(0.3, '#091630'); og.addColorStop(0.5, '#071228');
+  og.addColorStop(0.7, '#091630'); og.addColorStop(0.9, '#0c1c3a');
+  og.addColorStop(1, '#0e1e40');
+  ctx.fillStyle = og; ctx.fillRect(0, 0, W, H);
+
+  // Subtle ocean noise
+  const id = ctx.getImageData(0, 0, W, H), d = id.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = ((Math.sin(i * 0.0003) * 0.5 + Math.sin(i * 0.00017) * 0.3) * 4) | 0;
+    d[i] += n; d[i+1] += n; d[i+2] += n + 2;
+  }
+  ctx.putImageData(id, 0, 0);
+
+  loadBar.style.width = '20%';
+
+  // Lon/lat → pixel
+  function ll(lon, lat) { return [(lon + 180) / 360 * W, (90 - lat) / 180 * H]; }
+
+  // Try to load real TopoJSON land data
+  let geojsonLand = null;
+  try {
+    const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-50m.json');
+    const topo = await resp.json();
+    geojsonLand = topojson.feature(topo, topo.objects.land);
+    loadBar.style.width = '60%';
+  } catch (e) {
+    console.warn('Could not load TopoJSON, trying 110m fallback...');
+    try {
+      const resp2 = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json');
+      const topo2 = await resp2.json();
+      geojsonLand = topojson.feature(topo2, topo2.objects.land);
+    } catch (e2) {
+      console.warn('Could not load any land data, using basic fallback');
+    }
+    loadBar.style.width = '60%';
+  }
+
+  if (geojsonLand) {
+    // Draw all land polygons from real GeoJSON data
+    const features = geojsonLand.type === 'FeatureCollection' ? geojsonLand.features : [geojsonLand];
+
+    for (const feature of features) {
+      const geom = feature.geometry || feature;
+      let polygons = [];
+      if (geom.type === 'Polygon') polygons = [geom.coordinates];
+      else if (geom.type === 'MultiPolygon') polygons = geom.coordinates;
+
+      for (const poly of polygons) {
+        for (const ring of poly) {
+          ctx.beginPath();
+          const [sx, sy] = ll(ring[0][0], ring[0][1]);
+          ctx.moveTo(sx, sy);
+          for (let i = 1; i < ring.length; i++) {
+            const [x, y] = ll(ring[i][0], ring[i][1]);
+            ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+
+          // Biome coloring based on latitude of centroid
+          let avgLat = 0;
+          for (const pt of ring) avgLat += pt[1];
+          avgLat /= ring.length;
+          const absLat = Math.abs(avgLat);
+
+          let color;
+          if (absLat > 70) color = '#c0ccd8'; // ice
+          else if (absLat > 58) color = '#252e22'; // tundra/boreal
+          else if (absLat > 40) color = '#1e3a1e'; // temperate
+          else if (absLat > 25) {
+            // Check for desert regions (roughly North Africa, Arabia, Central Asia, Australia)
+            let avgLon = 0;
+            for (const pt of ring) avgLon += pt[0];
+            avgLon /= ring.length;
+            if ((avgLon > -20 && avgLon < 60 && avgLat > 15 && avgLat < 35) ||
+                (avgLon > 100 && avgLon < 155 && avgLat < -15)) {
+              color = '#3a3520'; // desert/arid
+            } else {
+              color = '#1e3a1e'; // temperate
+            }
+          }
+          else if (absLat > 10) color = '#1a4418'; // subtropical
+          else color = '#174a17'; // tropical
+
+          ctx.fillStyle = color;
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  loadBar.style.width = '80%';
+
+  // Coastal shelf glow
+  if (geojsonLand) {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = '#1a3850';
+    const features = geojsonLand.type === 'FeatureCollection' ? geojsonLand.features : [geojsonLand];
+    for (let pass = 0; pass < 3; pass++) {
+      ctx.lineWidth = 3 + pass * 3;
+      ctx.globalAlpha = 0.02 - pass * 0.005;
+      for (const feature of features) {
+        const geom = feature.geometry || feature;
+        let polygons = [];
+        if (geom.type === 'Polygon') polygons = [geom.coordinates];
+        else if (geom.type === 'MultiPolygon') polygons = geom.coordinates;
+        for (const poly of polygons) {
+          const ring = poly[0];
+          if (ring.length < 10) continue; // skip tiny islands for perf
+          ctx.beginPath();
+          const [sx, sy] = ll(ring[0][0], ring[0][1]);
+          ctx.moveTo(sx, sy);
+          for (let i = 1; i < ring.length; i++) {
+            const [x, y] = ll(ring[i][0], ring[i][1]);
+            ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
+
+  loadBar.style.width = '100%';
+  return new THREE.CanvasTexture(cv);
+}
+
+// ═══════════════════════════════════════════════════════════════
+const CONSTELLATIONS = [
+  {name:'SuperDove',color:'#22d3ee',altitude:500,count:200,inclination:97.4,planes:8,description:'3U CubeSat, 3m resolution, 8 spectral bands. Flagship daily global monitoring fleet.',size:'10×10×30cm CubeSat ~5kg',resolution:'3m multispectral',shape:'cubesat'},
+  {name:'SkySat',color:'#f97316',altitude:450,count:21,inclination:97.0,planes:3,description:'High-res tasking satellite, 50cm imagery, video capture. Mini-fridge sized.',size:'60×60×80cm ~110kg',resolution:'50cm panchromatic',shape:'skysat'},
+  {name:'Pelican',color:'#a78bfa',altitude:475,count:6,inclination:97.2,planes:2,description:'Next-gen high-res tasking. 30-40cm class, NVIDIA Jetson AI edge compute.',size:'SmallSat platform ~150kg',resolution:'30-40cm multispectral',shape:'smallsat'},
+  {name:'Owl',color:'#facc15',altitude:510,count:4,inclination:97.5,planes:2,description:'Next-gen monitoring fleet. 1m class, 60km+ swath, near-daily revisit.',size:'SmallSat platform',resolution:'1m class, 60km swath',shape:'owl'},
+  {name:'Tanager',color:'#34d399',altitude:522,count:2,inclination:97.6,planes:1,description:'Hyperspectral, 400+ bands (400-2500nm). Methane & CO₂ detection via JPL spectrometer.',size:'SmallSat platform',resolution:'30m, 420 spectral bands',shape:'tanager'}
+];
+
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.2;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(45,window.innerWidth/window.innerHeight,0.1,1000);
+const sunLight=new THREE.DirectionalLight(0xfff5e0,1.8);sunLight.position.set(5,3,4);scene.add(sunLight);
+scene.add(new THREE.AmbientLight(0x223355,0.3));
+(()=>{const l=new THREE.DirectionalLight(0x4488ff,0.2);l.position.set(-3,1,-4);scene.add(l);})();
+
+const ER=5;
+
+// Build earth asynchronously then add to scene
+async function init() {
+  const earthTex = await generateEarthTexture();
+  setTimeout(() => loadingEl.classList.add('done'), 300);
+
+  const earthMat=new THREE.ShaderMaterial({
+    uniforms:{uTex:{value:earthTex},uLightDir:{value:new THREE.Vector3(1,0.5,0.8).normalize()}},
+    vertexShader:`varying vec3 vN;varying vec3 vP;varying vec2 vUv;void main(){vN=normalize(normalMatrix*normal);vP=(modelViewMatrix*vec4(position,1.0)).xyz;vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`uniform sampler2D uTex;uniform vec3 uLightDir;varying vec3 vN;varying vec3 vP;varying vec2 vUv;
+      void main(){
+        vec3 tc=texture2D(uTex,vUv).rgb;
+        float diff=max(dot(vN,uLightDir),0.0);
+        float lighting=0.05+pow(diff,0.7)*0.95;
+        vec3 lit=tc*lighting;
+        vec3 vd=normalize(-vP);
+        float rim=1.0-max(dot(vd,vN),0.0);
+        rim=pow(rim,3.0);
+        vec3 atmo=vec3(0.15,0.35,0.9)*rim*0.75;
+        float br=dot(tc,vec3(0.3,0.5,0.2));
+        float isOcean=1.0-smoothstep(0.03,0.08,br);
+        vec3 hd=normalize(uLightDir+vd);
+        float spec=pow(max(dot(vN,hd),0.0),50.0)*isOcean*0.5;
+        gl_FragColor=vec4(lit+atmo+vec3(spec),1.0);
+      }`
+  });
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(ER,128,128),earthMat));
+
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(ER*1.015,64,64),new THREE.ShaderMaterial({
+    vertexShader:`varying vec3 vN;varying vec3 vP;void main(){vN=normalize(normalMatrix*normal);vP=(modelViewMatrix*vec4(position,1.0)).xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`varying vec3 vN;varying vec3 vP;void main(){float rim=1.0-max(dot(normalize(-vP),vN),0.0);rim=pow(rim,4.0);gl_FragColor=vec4(vec3(0.2,0.45,1.0)*rim,rim*0.5);}`,
+    transparent:true,side:THREE.FrontSide,depthWrite:false})));
+}
+
+// Stars
+const stCt=3000,stGeo=new THREE.BufferGeometry(),stP=new Float32Array(stCt*3),stS=new Float32Array(stCt);
+for(let i=0;i<stCt;i++){const t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1),r=80+Math.random()*120;stP[i*3]=r*Math.sin(p)*Math.cos(t);stP[i*3+1]=r*Math.sin(p)*Math.sin(t);stP[i*3+2]=r*Math.cos(p);stS[i]=0.3+Math.random()*1.2;}
+stGeo.setAttribute('position',new THREE.BufferAttribute(stP,3));stGeo.setAttribute('size',new THREE.BufferAttribute(stS,1));
+const stMat=new THREE.ShaderMaterial({uniforms:{uTime:{value:0}},vertexShader:`attribute float size;uniform float uTime;varying float vB;void main(){vB=0.5+0.5*sin(uTime*0.5+position.x*0.1);vec4 mv=modelViewMatrix*vec4(position,1.0);gl_PointSize=size*(200.0/-mv.z);gl_Position=projectionMatrix*mv;}`,fragmentShader:`varying float vB;void main(){float d=length(gl_PointCoord-0.5)*2.0;gl_FragColor=vec4(vec3(0.8,0.85,1.0)*vB,smoothstep(1.0,0.0,d)*0.7);}`,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
+scene.add(new THREE.Points(stGeo,stMat));
+
+// SATELLITE BUILDERS
+function bMat(c){return new THREE.MeshPhongMaterial({color:new THREE.Color(c).multiplyScalar(0.6),emissive:new THREE.Color(c).multiplyScalar(0.12),specular:0x555555,shininess:40});}
+const pM=new THREE.MeshPhongMaterial({color:0x0d1f44,emissive:0x080e22,specular:0x4466aa,shininess:60,side:2});
+const gM=new THREE.MeshPhongMaterial({color:0x997722,emissive:0x221100,specular:0xddbb44,shininess:80,side:2});
+const lM=new THREE.MeshPhongMaterial({color:0x080810,specular:0x999999,shininess:120});
+const aM=new THREE.MeshPhongMaterial({color:0xcccccc,specular:0xffffff,shininess:60,side:2});
+function aa(pr,g,m,x,y,z,rx,ry,rz){const o=new THREE.Mesh(g,m);o.position.set(x||0,y||0,z||0);if(rx)o.rotation.x=rx;if(ry)o.rotation.y=ry;if(rz)o.rotation.z=rz;pr.add(o);}
+function buildCubeSat(c){const g=new THREE.Group(),s=0.04;aa(g,new THREE.BoxGeometry(s,s,s*3),bMat(c),0,0,0);const p=new THREE.BoxGeometry(s*3,0.003,s*2.5);aa(g,p,pM,s*1.8,0,-s*0.4);aa(g,p.clone(),pM,-s*1.8,0,-s*0.4);const p2=new THREE.BoxGeometry(s*2.5,0.003,s*2.5);aa(g,p2,pM,0,s*1.5,-s*0.4,0,0,0.35);aa(g,p2.clone(),pM,0,-s*1.5,-s*0.4,0,0,-0.35);aa(g,new THREE.SphereGeometry(s*0.3,8,8),lM,0,0,s*1.55);aa(g,new THREE.BoxGeometry(s*0.15,s*0.15,s*0.5),aM,s*0.3,0,-s*1.7);return g;}
+function buildSkySat(c){const g=new THREE.Group(),s=0.065;aa(g,new THREE.BoxGeometry(s*1.2,s*1.2,s*2),bMat(c),0,0,0);aa(g,new THREE.BoxGeometry(s*1.22,s*1.22,0.002),gM,0,0,s*1.01);const w=new THREE.BoxGeometry(s*4,0.004,s*1.8);aa(g,w,pM,s*2.8,0,0);aa(g,w.clone(),pM,-s*2.8,0,0);aa(g,new THREE.SphereGeometry(s*0.28,8,8),lM,0,0,s*1.03);aa(g,new THREE.BoxGeometry(0.003,s*0.8,0.003),aM,s*0.4,s*0.9,s*0.5);return g;}
+function buildSmallSat(c){const g=new THREE.Group(),s=0.08;aa(g,new THREE.BoxGeometry(s*1.4,s*1.2,s*2.2),bMat(c),0,0,0);const w=new THREE.BoxGeometry(s*3.5,0.004,s*2);aa(g,w,pM,s*2.5,0,0);aa(g,w.clone(),pM,-s*2.5,0,0);aa(g,w.clone(),pM,s*5.8,0,0);aa(g,w.clone(),pM,-s*5.8,0,0);aa(g,new THREE.SphereGeometry(s*0.4,12,8,0,Math.PI*2,0,Math.PI*0.5),aM,0,s*0.8,-s*0.5,-0.15);aa(g,new THREE.SphereGeometry(s*0.4,10,10),lM,0,0,s*1.15);return g;}
+function buildOwl(c){const g=new THREE.Group(),s=0.08;aa(g,new THREE.BoxGeometry(s*1.6,s*1.0,s*2.4),bMat(c),0,0,0);const w=new THREE.BoxGeometry(s*5,0.004,s*2.4);aa(g,w,pM,s*3.5,0,0);aa(g,w.clone(),pM,-s*3.5,0,0);aa(g,new THREE.SphereGeometry(s*0.5,12,12),new THREE.MeshPhongMaterial({color:0x111105,emissive:new THREE.Color(c).multiplyScalar(0.08),specular:0xaaaa44,shininess:100}),0,0,s*1.25);aa(g,new THREE.BoxGeometry(s*1.4,s*0.3,s*0.8),new THREE.MeshPhongMaterial({color:0x333333,specular:0x666666,shininess:30}),0,-s*0.75,0);return g;}
+function buildTanager(c){const g=new THREE.Group(),s=0.08;aa(g,new THREE.BoxGeometry(s*1.4,s*1.2,s*2.4),bMat(c),0,0,0);aa(g,new THREE.BoxGeometry(s*1.0,s*0.6,s*1.6),new THREE.MeshPhongMaterial({color:0x115533,emissive:0x041a0f,specular:0x226644,shininess:30}),0,-s*0.9,s*0.2);aa(g,new THREE.BoxGeometry(s*0.8,0.003,s*1.2),gM,0,-s*1.22,s*0.2);const w=new THREE.BoxGeometry(s*4,0.004,s*2);aa(g,w,pM,s*3,0,0);aa(g,w.clone(),pM,-s*3,0,0);aa(g,w.clone(),pM,s*6.5,0,0);aa(g,w.clone(),pM,-s*6.5,0,0);aa(g,new THREE.SphereGeometry(s*0.35,10,10),lM,0,0,s*1.25);return g;}
+function buildSat(sh,c){return({cubesat:buildCubeSat,skysat:buildSkySat,smallsat:buildSmallSat,owl:buildOwl,tanager:buildTanager}[sh]||buildCubeSat)(c);}
+
+function altToR(a){return ER+(a/6371)*ER;}
+const groups={},vis={};let spd=1;
+CONSTELLATIONS.forEach(c=>{
+  const g=new THREE.Group(),oR=altToR(c.altitude),iR=c.inclination*Math.PI/180;
+  for(let p=0;p<c.planes;p++){const rn=(p/c.planes)*Math.PI*2;const pts=[];for(let i=0;i<=256;i++){const a=(i/256)*Math.PI*2;let x=oR*Math.cos(a),y=0,z=oR*Math.sin(a);const ny=y*Math.cos(iR)-z*Math.sin(iR),nz=y*Math.sin(iR)+z*Math.cos(iR);y=ny;z=nz;const fx=x*Math.cos(rn)-z*Math.sin(rn),fz=x*Math.sin(rn)+z*Math.cos(rn);pts.push(new THREE.Vector3(fx,y,fz));}g.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:new THREE.Color(c.color),transparent:true,opacity:0.12,depthWrite:false})));}
+  const ph=[],pa=[];
+  if(c.count>30){const s=0.04;const gs=[{g:new THREE.BoxGeometry(s,s,s*3),m:new THREE.Matrix4()},{g:new THREE.BoxGeometry(s*3,0.003,s*2.5),m:new THREE.Matrix4().makeTranslation(s*1.8,0,-s*0.4)},{g:new THREE.BoxGeometry(s*3,0.003,s*2.5),m:new THREE.Matrix4().makeTranslation(-s*1.8,0,-s*0.4)},{g:new THREE.BoxGeometry(s*2.5,0.003,s*2.5),m:new THREE.Matrix4().makeTranslation(0,s*1.5,-s*0.4)},{g:new THREE.BoxGeometry(s*2.5,0.003,s*2.5),m:new THREE.Matrix4().makeTranslation(0,-s*1.5,-s*0.4)}];
+    const pos=[],nrm=[],idx=[];let off=0;gs.forEach(({g:geo,m:mt})=>{const gg=geo.clone();gg.applyMatrix4(mt);const p=gg.attributes.position.array,n=gg.attributes.normal.array,ii=gg.index.array;for(let i=0;i<p.length;i++)pos.push(p[i]);for(let i=0;i<n.length;i++)nrm.push(n[i]);for(let i=0;i<ii.length;i++)idx.push(ii[i]+off);off+=gg.attributes.position.count;});
+    const mg=new THREE.BufferGeometry();mg.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));mg.setAttribute('normal',new THREE.Float32BufferAttribute(nrm,3));mg.setIndex(idx);
+    const mesh=new THREE.InstancedMesh(mg,new THREE.MeshPhongMaterial({color:new THREE.Color(c.color).multiplyScalar(0.55),emissive:new THREE.Color(c.color).multiplyScalar(0.15),specular:0x336688,shininess:30}),c.count);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    for(let i=0;i<c.count;i++){ph.push((Math.floor(i/c.planes)/Math.ceil(c.count/c.planes))*Math.PI*2+(Math.random()-0.5)*0.1);pa.push(i%c.planes);}
+    g.add(mesh);groups[c.name]={g,mesh,ph,pa,oR,iR,planes:c.planes,count:c.count,inst:true,dm:new THREE.Object3D()};
+  }else{const sats=[];for(let i=0;i<c.count;i++){ph.push((Math.floor(i/c.planes)/Math.ceil(c.count/c.planes))*Math.PI*2+(Math.random()-0.5)*0.12);pa.push(i%c.planes);const sat=buildSat(c.shape,c.color);g.add(sat);sats.push(sat);}
+    groups[c.name]={g,sats,ph,pa,oR,iR,planes:c.planes,count:c.count,inst:false};}
+  scene.add(g);vis[c.name]=true;
+});
+
+// UI
+const ce=document.getElementById('controls');
+CONSTELLATIONS.forEach(c=>{const el=document.createElement('div');el.className='sat-toggle';const tl=c.shape==='cubesat'?'3U CubeSat':c.shape==='skysat'?'MiniSat':'SmallSat';el.innerHTML=`<div class="sat-dot" style="background:${c.color};box-shadow:0 0 8px ${c.color}88;"></div><div class="sat-info"><span class="sat-name">${c.name}</span><span class="sat-meta">${c.altitude}km · ${tl}</span></div><span class="sat-count">${c.count}</span>`;el.addEventListener('click',()=>{vis[c.name]=!vis[c.name];groups[c.name].g.visible=vis[c.name];el.classList.toggle('off',!vis[c.name]);ut();});ce.appendChild(el);});
+function ut(){let t=0;CONSTELLATIONS.forEach(c=>{if(vis[c.name])t+=c.count;});document.getElementById('sat-total').textContent=t;}ut();
+document.getElementById('speed-slider').addEventListener('input',function(){spd=parseFloat(this.value);document.getElementById('speed-val').textContent=spd.toFixed(1)+'×';});
+
+let isDrag=false,pm={x:0,y:0},sp={theta:0,phi:Math.PI/3,radius:22};
+function uc(){const r=sp.radius;camera.position.set(r*Math.sin(sp.phi)*Math.sin(sp.theta),r*Math.cos(sp.phi),r*Math.sin(sp.phi)*Math.cos(sp.theta));camera.lookAt(0,0,0);}uc();
+canvas.addEventListener('pointerdown',e=>{isDrag=true;pm={x:e.clientX,y:e.clientY};});
+window.addEventListener('pointermove',e=>{if(!isDrag)return;sp.theta-=(e.clientX-pm.x)*0.005;sp.phi=Math.max(0.2,Math.min(Math.PI-0.2,sp.phi+(e.clientY-pm.y)*0.005));pm={x:e.clientX,y:e.clientY};uc();});
+window.addEventListener('pointerup',()=>isDrag=false);
+canvas.addEventListener('wheel',e=>{e.preventDefault();sp.radius=Math.max(10,Math.min(50,sp.radius+e.deltaY*0.015));uc();},{passive:false});
+
+const tt=document.getElementById('tooltip'),rc=new THREE.Raycaster(),mv=new THREE.Vector2();
+canvas.addEventListener('mousemove',e=>{mv.x=(e.clientX/window.innerWidth)*2-1;mv.y=-(e.clientY/window.innerHeight)*2+1;rc.setFromCamera(mv,camera);let hit=false;for(const c of CONSTELLATIONS){if(!vis[c.name])continue;const g=groups[c.name];let its;if(g.inst){its=rc.intersectObject(g.mesh);}else{const al=[];g.sats.forEach(s=>s.traverse(ch=>{if(ch.isMesh)al.push(ch);}));its=rc.intersectObjects(al);}if(its.length>0){let tx=e.clientX+16,ty=e.clientY-10;if(tx+260>window.innerWidth)tx=e.clientX-270;if(ty+200>window.innerHeight)ty=e.clientY-200;tt.style.display='block';tt.style.left=tx+'px';tt.style.top=ty+'px';tt.querySelector('.tt-name').textContent=c.name;tt.querySelector('.tt-name').style.color=c.color;tt.querySelector('.tt-detail').innerHTML=`${c.description}<br><br><span style="color:#6b7280">Altitude:</span> ${c.altitude} km<br><span style="color:#6b7280">Fleet:</span> ${c.count} sats<br><span style="color:#6b7280">Size:</span> ${c.size}<br><span style="color:#6b7280">Resolution:</span> ${c.resolution}`;hit=true;break;}}if(!hit)tt.style.display='none';});
+
+const clock=new THREE.Clock();
+function op(ph,t,pf,oR,iR,rn){const a=ph+t*pf*2;let x=oR*Math.cos(a),y=0,z=oR*Math.sin(a);const ny=y*Math.cos(iR)-z*Math.sin(iR),nz=y*Math.sin(iR)+z*Math.cos(iR);y=ny;z=nz;return{x:x*Math.cos(rn)-z*Math.sin(rn),y,z:x*Math.sin(rn)+z*Math.cos(rn)};}
+function animate(){
+  requestAnimationFrame(animate);const el=clock.getElapsedTime(),t=el*spd;
+  stMat.uniforms.uTime.value=el;
+  if(!isDrag){sp.theta+=0.0008*spd;uc();}
+  for(const c of CONSTELLATIONS){if(!vis[c.name])continue;const g=groups[c.name];const pf=0.08/(g.oR/ER);
+    if(g.inst){for(let i=0;i<g.count;i++){const rn=(g.pa[i]/g.planes)*Math.PI*2;const p=op(g.ph[i],t,pf,g.oR,g.iR,rn);const a=op(g.ph[i]+0.02,t,pf,g.oR,g.iR,rn);g.dm.position.set(p.x,p.y,p.z);g.dm.lookAt(a.x,a.y,a.z);g.dm.updateMatrix();g.mesh.setMatrixAt(i,g.dm.matrix);}g.mesh.instanceMatrix.needsUpdate=true;}
+    else{for(let i=0;i<g.count;i++){const rn=(g.pa[i]/g.planes)*Math.PI*2;const p=op(g.ph[i],t,pf,g.oR,g.iR,rn);const a=op(g.ph[i]+0.02,t,pf,g.oR,g.iR,rn);g.sats[i].position.set(p.x,p.y,p.z);g.sats[i].lookAt(a.x,a.y,a.z);}}}
+  renderer.render(scene,camera);}
+
+// Start everything
+init().then(() => animate());
+
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+</script>
+</body>
+</html>
