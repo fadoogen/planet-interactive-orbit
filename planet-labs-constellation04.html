@@ -322,8 +322,8 @@ function animate(){
   stMat.uniforms.uTime.value=el;
   if(!isDrag){sp.theta+=0.0008*spd;uc();}
   for(const c of CONSTELLATIONS){if(!vis[c.name])continue;const g=groups[c.name];const pf=0.08/(g.oR/ER);
-    if(g.inst){for(let i=0;i<g.count;i++){const rn=(g.pa[i]/g.planes)*Math.PI*2;const p=op(g.ph[i],t,pf,g.oR,g.iR,rn);const a=op(g.ph[i]+0.02,t,pf,g.oR,g.iR,rn);g.dm.position.set(p.x,p.y,p.z);g.dm.lookAt(a.x,a.y,a.z);g.dm.updateMatrix();g.mesh.setMatrixAt(i,g.dm.matrix);}g.mesh.instanceMatrix.needsUpdate=true;}
-    else{for(let i=0;i<g.count;i++){const rn=(g.pa[i]/g.planes)*Math.PI*2;const p=op(g.ph[i],t,pf,g.oR,g.iR,rn);const a=op(g.ph[i]+0.02,t,pf,g.oR,g.iR,rn);g.sats[i].position.set(p.x,p.y,p.z);g.sats[i].lookAt(a.x,a.y,a.z);}}}
+    if(g.inst){for(let i=0;i<g.count;i++){const rn=(g.pa[i]/g.planes)*Math.PI*2;const p=op(g.ph[i],t,pf,g.oR,g.iR,rn);const a=op(g.ph[i]+0.02,t,pf,g.oR,g.iR,rn);g.dm.position.set(p.x,p.y,p.z);const uv=new THREE.Vector3(p.x,p.y,p.z).normalize();g.dm.up.copy(uv);g.dm.lookAt(a.x,a.y,a.z);g.dm.updateMatrix();g.mesh.setMatrixAt(i,g.dm.matrix);}g.mesh.instanceMatrix.needsUpdate=true;}
+    else{for(let i=0;i<g.count;i++){const rn=(g.pa[i]/g.planes)*Math.PI*2;const p=op(g.ph[i],t,pf,g.oR,g.iR,rn);const a=op(g.ph[i]+0.02,t,pf,g.oR,g.iR,rn);g.sats[i].position.set(p.x,p.y,p.z);g.sats[i].up.set(p.x,p.y,p.z).normalize();g.sats[i].lookAt(a.x,a.y,a.z);}}}
   renderer.render(scene,camera);}
 
 // Start everything
