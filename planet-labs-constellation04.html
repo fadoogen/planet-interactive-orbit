@@ -167,7 +167,7 @@ async function generateEarthTexture() {
     }
   }
 
-  loadBar.style.width = '65%';
+  loadBar.style.width = '80%';
 
   // Coastal shelf glow
   if (geojsonLand) {
@@ -201,7 +201,7 @@ async function generateEarthTexture() {
     ctx.globalAlpha = 1;
   }
 
-  loadBar.style.width = '70%';
+  loadBar.style.width = '100%';
   return new THREE.CanvasTexture(cv);
 }
 
@@ -229,98 +229,35 @@ const ER=5;
 
 // Build earth asynchronously then add to scene
 async function init() {
-  const loader = new THREE.TextureLoader();
-  function mkFallback(rgba){const dt=new THREE.DataTexture(new Uint8Array(rgba),1,1,THREE.RGBAFormat);dt.needsUpdate=true;return dt;}
-  const safeTex=(url,rgba)=>new Promise(resolve=>{loader.load(url,resolve,undefined,()=>resolve(mkFallback(rgba)));});
-  const BASE='https://threejs.org/examples/textures/planets/';
-
-  // Primary: NASA Blue Marble satellite imagery. Fallback: procedural TopoJSON map.
-  loadBar.style.width='15%';
-  let earthTex;
-  try {
-    earthTex=await new Promise((resolve,reject)=>loader.load(BASE+'earth_atmos_2048.jpg',resolve,undefined,reject));
-    loadBar.style.width='60%';
-  } catch(e) {
-    earthTex=await generateEarthTexture();
-  }
-
-  // Specular map (bright=ocean, dark=land) + city night lights
-  loadBar.style.width='75%';
-  const [specMap,nightMap]=await Promise.all([
-    safeTex(BASE+'earth_specular_2048.jpg',[0,0,0,255]),
-    safeTex(BASE+'earth_lights_2048.png',[0,0,0,255]),
-  ]);
-  loadBar.style.width='100%';
-  setTimeout(()=>loadingEl.classList.add('done'),300);
+  const earthTex = await generateEarthTexture();
+  setTimeout(() => loadingEl.classList.add('done'), 300);
 
   const earthMat=new THREE.ShaderMaterial({
-    uniforms:{
-      uTex:{value:earthTex},uSpecMap:{value:specMap},
-      uNightTex:{value:nightMap},uLightDir:{value:new THREE.Vector3(1,0.2,0).normalize()}
-    },
-    vertexShader:`varying vec3 vNw;varying vec3 vN;varying vec3 vP;varying vec3 vPw;varying vec2 vUv;
-      void main(){
-        vNw=normalize(mat3(modelMatrix)*normal);
-        vN=normalize(normalMatrix*normal);
-        vP=(modelViewMatrix*vec4(position,1.0)).xyz;
-        vPw=(modelMatrix*vec4(position,1.0)).xyz;
-        vUv=uv;
-        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
-      }`,
-    fragmentShader:`uniform sampler2D uTex;uniform sampler2D uSpecMap;uniform sampler2D uNightTex;uniform vec3 uLightDir;
-      varying vec3 vNw;varying vec3 vN;varying vec3 vP;varying vec3 vPw;varying vec2 vUv;
+    uniforms:{uTex:{value:earthTex},uLightDir:{value:new THREE.Vector3(1,0.5,0.8).normalize()}},
+    vertexShader:`varying vec3 vN;varying vec3 vP;varying vec2 vUv;void main(){vN=normalize(normalMatrix*normal);vP=(modelViewMatrix*vec4(position,1.0)).xyz;vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`uniform sampler2D uTex;uniform vec3 uLightDir;varying vec3 vN;varying vec3 vP;varying vec2 vUv;
       void main(){
         vec3 tc=texture2D(uTex,vUv).rgb;
-        float rawDiff=dot(vNw,uLightDir);
-        float diff=max(rawDiff,0.0);
-        vec3 lit=tc*(0.02+pow(diff,0.9)*0.98);
-        float specMask=texture2D(uSpecMap,vUv).r;
-        vec3 viewDirW=normalize(cameraPosition-vPw);
-        vec3 hd=normalize(uLightDir+viewDirW);
-        float spec=pow(max(dot(vNw,hd),0.0),60.0)*specMask*diff;
-        lit+=vec3(spec*0.5,spec*0.7,spec);
-        vec3 nightTex=texture2D(uNightTex,vUv).rgb;
-        vec3 nightLights=nightTex*nightTex*5.0;
-        float nightFactor=1.0-smoothstep(-0.15,0.05,rawDiff);
-        lit+=nightLights*nightFactor;
+        float diff=max(dot(vN,uLightDir),0.0);
+        float lighting=0.05+pow(diff,0.7)*0.95;
+        vec3 lit=tc*lighting;
         vec3 vd=normalize(-vP);
-        float rim=1.0-max(dot(vd,vN),0.0);rim=pow(rim,3.0);
-        lit+=vec3(0.15,0.35,0.9)*rim*0.6;
-        gl_FragColor=vec4(lit,1.0);
+        float rim=1.0-max(dot(vd,vN),0.0);
+        rim=pow(rim,3.0);
+        vec3 atmo=vec3(0.15,0.35,0.9)*rim*0.75;
+        float br=dot(tc,vec3(0.3,0.5,0.2));
+        float isOcean=1.0-smoothstep(0.03,0.08,br);
+        vec3 hd=normalize(uLightDir+vd);
+        float spec=pow(max(dot(vN,hd),0.0),50.0)*isOcean*0.5;
+        gl_FragColor=vec4(lit+atmo+vec3(spec),1.0);
       }`
   });
-  // Earth group — tilted 23.5° on Z axis (axial tilt)
-  const TILT=23.5*Math.PI/180;
-  const earthGroup=new THREE.Group();
-  earthGroup.rotation.z=TILT;
-  scene.add(earthGroup);
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(ER,128,128),earthMat));
 
-  earthGroup.add(new THREE.Mesh(new THREE.SphereGeometry(ER,128,128),earthMat));
-
-  // Atmosphere glow (tilts with Earth)
-  earthGroup.add(new THREE.Mesh(new THREE.SphereGeometry(ER*1.015,64,64),new THREE.ShaderMaterial({
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(ER*1.015,64,64),new THREE.ShaderMaterial({
     vertexShader:`varying vec3 vN;varying vec3 vP;void main(){vN=normalize(normalMatrix*normal);vP=(modelViewMatrix*vec4(position,1.0)).xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
     fragmentShader:`varying vec3 vN;varying vec3 vP;void main(){float rim=1.0-max(dot(normalize(-vP),vN),0.0);rim=pow(rim,4.0);gl_FragColor=vec4(vec3(0.2,0.45,1.0)*rim,rim*0.5);}`,
     transparent:true,side:THREE.FrontSide,depthWrite:false})));
-
-  // Axis line (through tilted poles)
-  const axisLen=ER*1.45;
-  const axisGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,-axisLen,0),new THREE.Vector3(0,axisLen,0)]);
-  earthGroup.add(new THREE.Line(axisGeo,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.35})));
-
-  // Equator ring
-  const eqPts=[];for(let i=0;i<=128;i++){const a=i/128*Math.PI*2;eqPts.push(new THREE.Vector3(Math.cos(a)*ER*1.01,0,Math.sin(a)*ER*1.01));}
-  earthGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(eqPts),new THREE.LineBasicMaterial({color:0x88ccff,transparent:true,opacity:0.45})));
-
-  // Vertical reference line (world Y axis — "straight up" guide)
-  const vertLen=ER*1.45;
-  const vertGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,-vertLen,0),new THREE.Vector3(0,vertLen,0)]);
-  scene.add(new THREE.Line(vertGeo,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.18})));
-
-  // Tilt angle arc — from world vertical (0,arcR,0) to tilted-axis direction (-sin(TILT),cos(TILT),0)*arcR
-  const arcPts=[];const arcR=ER*1.35;const arcSegs=32;
-  for(let i=0;i<=arcSegs;i++){const a=-i/arcSegs*TILT;arcPts.push(new THREE.Vector3(Math.sin(a)*arcR,Math.cos(a)*arcR,0));}
-  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(arcPts),new THREE.LineBasicMaterial({color:0xffee88,transparent:true,opacity:0.7})));
 }
 
 // Stars

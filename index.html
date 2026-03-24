@@ -37,6 +37,7 @@
   #speed-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#6366f1;cursor:pointer;}
   #speed-val{font-family:'Space Mono',monospace;font-size:11px;color:#6b7280;min-width:30px;}
   #tooltip{position:absolute;display:none;background:rgba(10,10,20,0.92);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:12px 16px;pointer-events:none;backdrop-filter:blur(16px);max-width:260px;z-index:20;}
+  #tilt-label{position:absolute;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1px;color:rgba(255,238,136,0.85);pointer-events:none;white-space:nowrap;text-shadow:0 0 8px rgba(255,238,136,0.4);}
   #tooltip .tt-name{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:1px;margin-bottom:6px;}
   #tooltip .tt-detail{font-size:11px;color:#9ca3af;line-height:1.5;}
 </style>
@@ -55,10 +56,12 @@
     <div class="info-block"><span class="info-label">Orbit Type</span><span class="info-value">Sun-Synchronous</span></div>
     <div class="info-block"><span class="info-label">Drag to Rotate</span><span class="info-value">Scroll to Zoom</span></div>
   </div>
-  <div id="speed-control"><label>Speed</label><input type="range" id="speed-slider" min="0.1" max="5" step="0.1" value="1"><span id="speed-val">1×</span></div>
+  <div id="speed-control"><label>Speed</label><input type="range" id="speed-slider" min="0.1" max="5" step="0.1" value="0.4"><span id="speed-val">0.4×</span></div>
   <div id="tooltip"><div class="tt-name"></div><div class="tt-detail"></div></div>
+  <div id="tilt-label">23.5°</div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
@@ -280,8 +283,8 @@ async function init() {
         float spec=pow(max(dot(vNw,hd),0.0),60.0)*specMask*diff;
         lit+=vec3(spec*0.5,spec*0.7,spec);
         vec3 nightTex=texture2D(uNightTex,vUv).rgb;
-        vec3 nightLights=nightTex*nightTex*5.0;
-        float nightFactor=1.0-smoothstep(-0.15,0.05,rawDiff);
+        vec3 nightLights=nightTex*nightTex*7.0;
+        float nightFactor=1.0-smoothstep(-0.08,0.0,rawDiff);
         lit+=nightLights*nightFactor;
         vec3 vd=normalize(-vP);
         float rim=1.0-max(dot(vd,vN),0.0);rim=pow(rim,3.0);
@@ -289,28 +292,31 @@ async function init() {
         gl_FragColor=vec4(lit,1.0);
       }`
   });
-  // Earth group — tilted 23.5° on Z axis (axial tilt)
+  // Earth group — tilted 23.5° on Z axis (axial tilt), never rotates
   const TILT=23.5*Math.PI/180;
   const earthGroup=new THREE.Group();
   earthGroup.rotation.z=TILT;
   scene.add(earthGroup);
 
-  earthGroup.add(new THREE.Mesh(new THREE.SphereGeometry(ER,128,128),earthMat));
+  // Spin group inside earthGroup — rotates around local Y (the tilted axis)
+  earthSpinGroup=new THREE.Group();
+  earthGroup.add(earthSpinGroup);
 
-  // Atmosphere glow (tilts with Earth)
+  // Earth mesh and equator ring spin with the planet
+  earthSpinGroup.add(new THREE.Mesh(new THREE.SphereGeometry(ER,128,128),earthMat));
+  const eqPts=[];for(let i=0;i<=128;i++){const a=i/128*Math.PI*2;eqPts.push(new THREE.Vector3(Math.cos(a)*ER*1.01,0,Math.sin(a)*ER*1.01));}
+  earthSpinGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(eqPts),new THREE.LineBasicMaterial({color:0x88ccff,transparent:true,opacity:0.45})));
+
+  // Atmosphere glow — uniform sphere, no need to spin
   earthGroup.add(new THREE.Mesh(new THREE.SphereGeometry(ER*1.015,64,64),new THREE.ShaderMaterial({
     vertexShader:`varying vec3 vN;varying vec3 vP;void main(){vN=normalize(normalMatrix*normal);vP=(modelViewMatrix*vec4(position,1.0)).xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
     fragmentShader:`varying vec3 vN;varying vec3 vP;void main(){float rim=1.0-max(dot(normalize(-vP),vN),0.0);rim=pow(rim,4.0);gl_FragColor=vec4(vec3(0.2,0.45,1.0)*rim,rim*0.5);}`,
     transparent:true,side:THREE.FrontSide,depthWrite:false})));
 
-  // Axis line (through tilted poles)
+  // Axis line — fixed through the poles, does not spin
   const axisLen=ER*1.45;
   const axisGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,-axisLen,0),new THREE.Vector3(0,axisLen,0)]);
   earthGroup.add(new THREE.Line(axisGeo,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.35})));
-
-  // Equator ring
-  const eqPts=[];for(let i=0;i<=128;i++){const a=i/128*Math.PI*2;eqPts.push(new THREE.Vector3(Math.cos(a)*ER*1.01,0,Math.sin(a)*ER*1.01));}
-  earthGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(eqPts),new THREE.LineBasicMaterial({color:0x88ccff,transparent:true,opacity:0.45})));
 
   // Vertical reference line (world Y axis — "straight up" guide)
   const vertLen=ER*1.45;
@@ -321,6 +327,127 @@ async function init() {
   const arcPts=[];const arcR=ER*1.35;const arcSegs=32;
   for(let i=0;i<=arcSegs;i++){const a=-i/arcSegs*TILT;arcPts.push(new THREE.Vector3(Math.sin(a)*arcR,Math.cos(a)*arcR,0));}
   scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(arcPts),new THREE.LineBasicMaterial({color:0xffee88,transparent:true,opacity:0.7})));
+
+  // Anchor the "23.5°" label at the arc midpoint, offset outward
+  const arcMid=-TILT/2;
+  tiltLabelPos.set(Math.sin(arcMid)*arcR*1.12,Math.cos(arcMid)*arcR*1.12,0);
+
+  // Load Owl OBJ model
+  await new Promise(resolve=>{
+    new THREE.OBJLoader().load(
+      'references/inputs/OwlProxy_forWeb.obj?t='+Date.now(),
+      obj=>{
+        // Rotate so solar panels extend cross-track (±X) instead of fore-aft
+        obj.rotation.y=-Math.PI/2;
+        obj.scale.setScalar(0.0015);
+
+        // Body (RS Standard.7) + topside surfaces (default) → silver
+        // Solar panel arrays (RS Standard) → blue
+        const matBody=new THREE.MeshPhongMaterial({color:0xb89000,specular:0xeedd44,shininess:70,emissive:0x221a00});
+        const matPanel=new THREE.MeshPhongMaterial({color:0x1a4488,emissive:0x0a1e3a,specular:0x4477cc,shininess:25});
+        let owlMeshIdx=0;
+        obj.traverse(ch=>{
+          if(!ch.isMesh)return;
+          ch.material=(ch.material.name==='RS Standard'||owlMeshIdx++>0)?matPanel:matBody;
+        });
+        if(groups['Owl']){
+          groups['Owl'].sats.forEach(sat=>{
+            while(sat.children.length)sat.remove(sat.children[0]);
+            sat.add(obj.clone());
+          });
+        }
+        resolve();
+      },
+      undefined,
+      err=>{console.error('Owl OBJ load failed:',err);resolve();}
+    );
+  });
+
+  // Load SkySat OBJ model
+  await new Promise(resolve=>{
+    new THREE.OBJLoader().load(
+      'references/inputs/SkySat_forWeb.obj?t='+Date.now(),
+      obj=>{
+        // Center geometry at bbox center
+        const box=new THREE.Box3().setFromObject(obj);
+        const ctr=new THREE.Vector3();box.getCenter(ctr);
+        obj.traverse(ch=>{if(ch.isMesh)ch.geometry.translate(-ctr.x,-ctr.y,-ctr.z);});
+        obj.rotation.y=-Math.PI/2;
+        obj.scale.setScalar(0.0003);
+        const matSkyBody=new THREE.MeshPhongMaterial({color:0xc0c4cc,specular:0x999999,shininess:80,emissive:0x111111});
+        const matSkyTop=new THREE.MeshPhongMaterial({color:0xd48a00,emissive:0x3a2200,specular:0xffcc44,shininess:90});
+        obj.traverse(ch=>{
+          if(!ch.isMesh)return;
+          ch.material=(ch.material.name==='Mat_1')?matSkyTop:matSkyBody;
+        });
+        if(groups['SkySat']){
+          groups['SkySat'].sats.forEach(sat=>{
+            while(sat.children.length)sat.remove(sat.children[0]);
+            sat.add(obj.clone());
+          });
+        }
+        resolve();
+      },
+      undefined,
+      err=>{console.error('SkySat OBJ load failed:',err);resolve();}
+    );
+  });
+
+  // Load DoveProxy OBJ model — replaces instanced SuperDove CubeSat geometry
+  await new Promise(resolve=>{
+    new THREE.OBJLoader().load(
+      'references/inputs/DoveProxy_forWeb.obj?t='+Date.now(),
+      obj=>{
+        let rawGeo=null;
+        obj.traverse(ch=>{if(ch.isMesh&&!rawGeo)rawGeo=ch.geometry.clone();});
+        if(rawGeo&&groups['SuperDove']){
+          const sd=groups['SuperDove'];
+
+          // Center at bbox center, scale to CubeSat footprint
+          rawGeo.computeBoundingBox();
+          const bc=new THREE.Vector3();
+          rawGeo.boundingBox.getCenter(bc);
+          rawGeo.translate(-bc.x,-bc.y,-bc.z);
+          const sc=0.0005;
+          rawGeo.applyMatrix4(new THREE.Matrix4().makeScale(sc,sc,sc));
+
+          // Split BEFORE rotation in pre-rotation X space:
+          // CubeSat body box lives at old X centered = +0.010 → +0.045 (original X 24→62)
+          // Solar panel platform is everything else (xc ≤ 0.009)
+          const posArr=rawGeo.attributes.position.array;
+          const nrmArr=rawGeo.attributes.normal.array;
+          const nVerts=rawGeo.attributes.position.count;
+          const bPos=[],bNrm=[],wPos=[],wNrm=[];
+          for(let f=0;f<nVerts;f+=3){
+            const b=f*3;
+            const xc=(posArr[b]+posArr[b+3]+posArr[b+6])/3;
+            const isWing=(xc<=0.009);
+            const pa=isWing?wPos:bPos, na=isWing?wNrm:bNrm;
+            for(let k=0;k<9;k++){pa.push(posArr[b+k]);na.push(nrmArr[b+k]);}
+          }
+          function mkG(p,n){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(n,3));return g;}
+
+          // rotX(PI) * rotY(-PI/2) * rotZ(PI/2)
+          const rotM=new THREE.Matrix4().makeRotationX(Math.PI).multiply(new THREE.Matrix4().makeRotationY(-Math.PI/2)).multiply(new THREE.Matrix4().makeRotationZ(Math.PI/2));
+          const bodyGeo=mkG(bPos,bNrm); bodyGeo.applyMatrix4(rotM); bodyGeo.computeVertexNormals();
+          const wingGeo=mkG(wPos,wNrm); wingGeo.applyMatrix4(rotM); wingGeo.computeVertexNormals();
+
+          // Silver body, blue solar panels — same instanced matrix buffer shared
+          const bodyMesh=new THREE.InstancedMesh(bodyGeo,new THREE.MeshPhongMaterial({color:0xc0c4cc,specular:0x999999,shininess:80,emissive:0x111111}),sd.count);
+          const wingMesh=new THREE.InstancedMesh(wingGeo,new THREE.MeshPhongMaterial({color:0x1a4488,emissive:0x0a1e3a,specular:0x4477cc,shininess:25}),sd.count);
+          bodyMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+          wingMesh.instanceMatrix=bodyMesh.instanceMatrix;
+          sd.g.remove(sd.mesh);
+          sd.g.add(bodyMesh);
+          sd.g.add(wingMesh);
+          sd.mesh=bodyMesh;
+        }
+        resolve();
+      },
+      undefined,
+      err=>{console.error('Dove OBJ load failed:',err);resolve();}
+    );
+  });
 }
 
 // Stars
@@ -339,26 +466,32 @@ const aM=new THREE.MeshPhongMaterial({color:0xcccccc,specular:0xffffff,shininess
 function aa(pr,g,m,x,y,z,rx,ry,rz){const o=new THREE.Mesh(g,m);o.position.set(x||0,y||0,z||0);if(rx)o.rotation.x=rx;if(ry)o.rotation.y=ry;if(rz)o.rotation.z=rz;pr.add(o);}
 function buildCubeSat(c){const g=new THREE.Group(),s=0.04;aa(g,new THREE.BoxGeometry(s,s,s*3),bMat(c),0,0,0);const p=new THREE.BoxGeometry(s*3,0.003,s*2.5);aa(g,p,pM,s*1.8,0,-s*0.4);aa(g,p.clone(),pM,-s*1.8,0,-s*0.4);const p2=new THREE.BoxGeometry(s*2.5,0.003,s*2.5);aa(g,p2,pM,0,s*1.5,-s*0.4,0,0,0.35);aa(g,p2.clone(),pM,0,-s*1.5,-s*0.4,0,0,-0.35);aa(g,new THREE.SphereGeometry(s*0.3,8,8),lM,0,0,s*1.55);aa(g,new THREE.BoxGeometry(s*0.15,s*0.15,s*0.5),aM,s*0.3,0,-s*1.7);return g;}
 function buildSkySat(c){const g=new THREE.Group(),s=0.065;aa(g,new THREE.BoxGeometry(s*1.2,s*1.2,s*2),bMat(c),0,0,0);aa(g,new THREE.BoxGeometry(s*1.22,s*1.22,0.002),gM,0,0,s*1.01);const w=new THREE.BoxGeometry(s*4,0.004,s*1.8);aa(g,w,pM,s*2.8,0,0);aa(g,w.clone(),pM,-s*2.8,0,0);aa(g,new THREE.SphereGeometry(s*0.28,8,8),lM,0,0,s*1.03);aa(g,new THREE.BoxGeometry(0.003,s*0.8,0.003),aM,s*0.4,s*0.9,s*0.5);return g;}
-function buildSmallSat(c){const g=new THREE.Group(),s=0.08;aa(g,new THREE.BoxGeometry(s*1.4,s*1.2,s*2.2),bMat(c),0,0,0);const w=new THREE.BoxGeometry(s*3.5,0.004,s*2);aa(g,w,pM,s*2.5,0,0);aa(g,w.clone(),pM,-s*2.5,0,0);aa(g,w.clone(),pM,s*5.8,0,0);aa(g,w.clone(),pM,-s*5.8,0,0);aa(g,new THREE.SphereGeometry(s*0.4,12,8,0,Math.PI*2,0,Math.PI*0.5),aM,0,s*0.8,-s*0.5,-0.15);aa(g,new THREE.SphereGeometry(s*0.4,10,10),lM,0,0,s*1.15);return g;}
-function buildOwl(c){const g=new THREE.Group(),s=0.08;aa(g,new THREE.BoxGeometry(s*1.6,s*1.0,s*2.4),bMat(c),0,0,0);const w=new THREE.BoxGeometry(s*5,0.004,s*2.4);aa(g,w,pM,s*3.5,0,0);aa(g,w.clone(),pM,-s*3.5,0,0);aa(g,new THREE.SphereGeometry(s*0.5,12,12),new THREE.MeshPhongMaterial({color:0x111105,emissive:new THREE.Color(c).multiplyScalar(0.08),specular:0xaaaa44,shininess:100}),0,0,s*1.25);aa(g,new THREE.BoxGeometry(s*1.4,s*0.3,s*0.8),new THREE.MeshPhongMaterial({color:0x333333,specular:0x666666,shininess:30}),0,-s*0.75,0);return g;}
-function buildTanager(c){const g=new THREE.Group(),s=0.08;aa(g,new THREE.BoxGeometry(s*1.4,s*1.2,s*2.4),bMat(c),0,0,0);aa(g,new THREE.BoxGeometry(s*1.0,s*0.6,s*1.6),new THREE.MeshPhongMaterial({color:0x115533,emissive:0x041a0f,specular:0x226644,shininess:30}),0,-s*0.9,s*0.2);aa(g,new THREE.BoxGeometry(s*0.8,0.003,s*1.2),gM,0,-s*1.22,s*0.2);const w=new THREE.BoxGeometry(s*4,0.004,s*2);aa(g,w,pM,s*3,0,0);aa(g,w.clone(),pM,-s*3,0,0);aa(g,w.clone(),pM,s*6.5,0,0);aa(g,w.clone(),pM,-s*6.5,0,0);aa(g,new THREE.SphereGeometry(s*0.35,10,10),lM,0,0,s*1.25);return g;}
+function buildSmallSat(c){const g=new THREE.Group(),s=0.04;aa(g,new THREE.BoxGeometry(s*1.4,s*1.2,s*2.2),bMat(c),0,0,0);const w=new THREE.BoxGeometry(s*2.3,0.004,s*2);aa(g,w,pM,s*1.7,0,0);aa(g,w.clone(),pM,-s*1.7,0,0);aa(g,w.clone(),pM,s*3.9,0,0);aa(g,w.clone(),pM,-s*3.9,0,0);aa(g,new THREE.SphereGeometry(s*0.4,12,8,0,Math.PI*2,0,Math.PI*0.5),aM,0,s*0.8,-s*0.5,-0.15);aa(g,new THREE.SphereGeometry(s*0.4,10,10),lM,0,0,s*1.15);return g;}
+function buildOwl(c){
+  // Placeholder dot — replaced with real OBJ in init()
+  const g=new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(0.018,6,6),new THREE.MeshPhongMaterial({color:new THREE.Color(c),emissive:new THREE.Color(c).multiplyScalar(0.4)})));
+  return g;
+}
+function buildTanager(c){const g=new THREE.Group(),s=0.04;aa(g,new THREE.BoxGeometry(s*1.4,s*1.2,s*2.4),bMat(c),0,0,0);aa(g,new THREE.BoxGeometry(s*1.0,s*0.6,s*1.6),new THREE.MeshPhongMaterial({color:0x115533,emissive:0x041a0f,specular:0x226644,shininess:30}),0,-s*0.9,s*0.2);aa(g,new THREE.BoxGeometry(s*0.8,0.003,s*1.2),gM,0,-s*1.22,s*0.2);const w=new THREE.BoxGeometry(s*2.7,0.004,s*2);aa(g,w,pM,s*2,0,0);aa(g,w.clone(),pM,-s*2,0,0);aa(g,w.clone(),pM,s*4.4,0,0);aa(g,w.clone(),pM,-s*4.4,0,0);aa(g,new THREE.SphereGeometry(s*0.35,10,10),lM,0,0,s*1.25);return g;}
 function buildSat(sh,c){return({cubesat:buildCubeSat,skysat:buildSkySat,smallsat:buildSmallSat,owl:buildOwl,tanager:buildTanager}[sh]||buildCubeSat)(c);}
 
 function altToR(a){return ER+(a/6371)*ER;}
-const groups={},vis={};let spd=1;
+const groups={},vis={};let spd=0.4;
 CONSTELLATIONS.forEach(c=>{
   const g=new THREE.Group(),oR=altToR(c.altitude),iR=c.inclination*Math.PI/180;
-  for(let p=0;p<c.planes;p++){const rn=(p/c.planes)*Math.PI*2;const pts=[];for(let i=0;i<=256;i++){const a=(i/256)*Math.PI*2;let x=oR*Math.cos(a),y=0,z=oR*Math.sin(a);const ny=y*Math.cos(iR)-z*Math.sin(iR),nz=y*Math.sin(iR)+z*Math.cos(iR);y=ny;z=nz;const fx=x*Math.cos(rn)-z*Math.sin(rn),fz=x*Math.sin(rn)+z*Math.cos(rn);pts.push(new THREE.Vector3(fx,y,fz));}g.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:new THREE.Color(c.color),transparent:true,opacity:0.12,depthWrite:false})));}
+  const planeRs=Array.from({length:c.planes},(_,p)=>altToR(c.altitude+(c.planes>1?(p/(c.planes-1)-0.5)*20:0)));
+  for(let p=0;p<c.planes;p++){const rn=(p/c.planes)*Math.PI*2;const pr=planeRs[p];const pts=[];for(let i=0;i<=256;i++){const a=(i/256)*Math.PI*2;let x=pr*Math.cos(a),y=0,z=pr*Math.sin(a);const ny=y*Math.cos(iR)-z*Math.sin(iR),nz=y*Math.sin(iR)+z*Math.cos(iR);y=ny;z=nz;const fx=x*Math.cos(rn)-z*Math.sin(rn),fz=x*Math.sin(rn)+z*Math.cos(rn);pts.push(new THREE.Vector3(fx,y,fz));}g.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:new THREE.Color(c.color),transparent:true,opacity:0.12,depthWrite:false})));}
   const ph=[],pa=[];
   if(c.count>30){const s=0.04;const gs=[{g:new THREE.BoxGeometry(s,s,s*3),m:new THREE.Matrix4()},{g:new THREE.BoxGeometry(s*3,0.003,s*2.5),m:new THREE.Matrix4().makeTranslation(s*1.8,0,-s*0.4)},{g:new THREE.BoxGeometry(s*3,0.003,s*2.5),m:new THREE.Matrix4().makeTranslation(-s*1.8,0,-s*0.4)},{g:new THREE.BoxGeometry(s*2.5,0.003,s*2.5),m:new THREE.Matrix4().makeTranslation(0,s*1.5,-s*0.4)},{g:new THREE.BoxGeometry(s*2.5,0.003,s*2.5),m:new THREE.Matrix4().makeTranslation(0,-s*1.5,-s*0.4)}];
     const pos=[],nrm=[],idx=[];let off=0;gs.forEach(({g:geo,m:mt})=>{const gg=geo.clone();gg.applyMatrix4(mt);const p=gg.attributes.position.array,n=gg.attributes.normal.array,ii=gg.index.array;for(let i=0;i<p.length;i++)pos.push(p[i]);for(let i=0;i<n.length;i++)nrm.push(n[i]);for(let i=0;i<ii.length;i++)idx.push(ii[i]+off);off+=gg.attributes.position.count;});
     const mg=new THREE.BufferGeometry();mg.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));mg.setAttribute('normal',new THREE.Float32BufferAttribute(nrm,3));mg.setIndex(idx);
     const mesh=new THREE.InstancedMesh(mg,new THREE.MeshPhongMaterial({color:new THREE.Color(c.color).multiplyScalar(0.55),emissive:new THREE.Color(c.color).multiplyScalar(0.15),specular:0x336688,shininess:30}),c.count);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    for(let i=0;i<c.count;i++){ph.push((Math.floor(i/c.planes)/Math.ceil(c.count/c.planes))*Math.PI*2+(Math.random()-0.5)*0.1);pa.push(i%c.planes);}
-    g.add(mesh);groups[c.name]={g,mesh,ph,pa,oR,iR,planes:c.planes,count:c.count,inst:true,dm:new THREE.Object3D()};
-  }else{const sats=[];for(let i=0;i<c.count;i++){ph.push((Math.floor(i/c.planes)/Math.ceil(c.count/c.planes))*Math.PI*2+(Math.random()-0.5)*0.12);pa.push(i%c.planes);const sat=buildSat(c.shape,c.color);g.add(sat);sats.push(sat);}
-    groups[c.name]={g,sats,ph,pa,oR,iR,planes:c.planes,count:c.count,inst:false};}
+    for(let i=0;i<c.count;i++){const pl=i%c.planes,spp=Math.ceil(c.count/c.planes);ph.push((Math.floor(i/c.planes)/spp)*Math.PI*2+(pl*(Math.PI*2/spp))+(Math.random()-0.5)*0.1);pa.push(pl);}
+    g.add(mesh);groups[c.name]={g,mesh,ph,pa,oR,iR,planeRs,planes:c.planes,count:c.count,inst:true,dm:new THREE.Object3D()};
+  }else{const sats=[];for(let i=0;i<c.count;i++){const pl=i%c.planes,spp=Math.ceil(c.count/c.planes);ph.push((Math.floor(i/c.planes)/spp)*Math.PI*2+(pl*(Math.PI*2/spp))+(Math.random()-0.5)*0.12);pa.push(pl);const sat=buildSat(c.shape,c.color);g.add(sat);sats.push(sat);}
+    groups[c.name]={g,sats,ph,pa,oR,iR,planeRs,planes:c.planes,count:c.count,inst:false};}
   scene.add(g);vis[c.name]=true;
 });
 
@@ -368,6 +501,8 @@ CONSTELLATIONS.forEach(c=>{const el=document.createElement('div');el.className='
 function ut(){let t=0;CONSTELLATIONS.forEach(c=>{if(vis[c.name])t+=c.count;});document.getElementById('sat-total').textContent=t;}ut();
 document.getElementById('speed-slider').addEventListener('input',function(){spd=parseFloat(this.value);document.getElementById('speed-val').textContent=spd.toFixed(1)+'×';});
 
+let tiltLabelPos=new THREE.Vector3();
+let earthSpinGroup;
 let isDrag=false,pm={x:0,y:0},sp={theta:0,phi:Math.PI/3,radius:22};
 function uc(){const r=sp.radius;camera.position.set(r*Math.sin(sp.phi)*Math.sin(sp.theta),r*Math.cos(sp.phi),r*Math.sin(sp.phi)*Math.cos(sp.theta));camera.lookAt(0,0,0);}uc();
 canvas.addEventListener('pointerdown',e=>{isDrag=true;pm={x:e.clientX,y:e.clientY};});
@@ -384,10 +519,18 @@ function animate(){
   requestAnimationFrame(animate);const el=clock.getElapsedTime(),t=el*spd;
   stMat.uniforms.uTime.value=el;
   if(!isDrag){sp.theta+=0.0008*spd;uc();}
-  for(const c of CONSTELLATIONS){if(!vis[c.name])continue;const g=groups[c.name];const pf=0.08/(g.oR/ER);
-    if(g.inst){for(let i=0;i<g.count;i++){const rn=(g.pa[i]/g.planes)*Math.PI*2;const p=op(g.ph[i],t,pf,g.oR,g.iR,rn);const a=op(g.ph[i]+0.02,t,pf,g.oR,g.iR,rn);g.dm.position.set(p.x,p.y,p.z);const uv=new THREE.Vector3(p.x,p.y,p.z).normalize();g.dm.up.copy(uv);g.dm.lookAt(a.x,a.y,a.z);g.dm.updateMatrix();g.mesh.setMatrixAt(i,g.dm.matrix);}g.mesh.instanceMatrix.needsUpdate=true;}
-    else{for(let i=0;i<g.count;i++){const rn=(g.pa[i]/g.planes)*Math.PI*2;const p=op(g.ph[i],t,pf,g.oR,g.iR,rn);const a=op(g.ph[i]+0.02,t,pf,g.oR,g.iR,rn);g.sats[i].position.set(p.x,p.y,p.z);g.sats[i].up.set(p.x,p.y,p.z).normalize();g.sats[i].lookAt(a.x,a.y,a.z);}}}
-  renderer.render(scene,camera);}
+  if(earthSpinGroup)earthSpinGroup.rotation.y=-t*0.04;
+  for(const c of CONSTELLATIONS){if(!vis[c.name])continue;const g=groups[c.name];
+    if(g.inst){for(let i=0;i<g.count;i++){const rn=(g.pa[i]/g.planes)*Math.PI*2;const r=g.planeRs[g.pa[i]];const pf=0.08/(r/ER);const p=op(g.ph[i],t,pf,r,g.iR,rn);const a=op(g.ph[i]+0.02,t,pf,r,g.iR,rn);g.dm.position.set(p.x,p.y,p.z);const uv=new THREE.Vector3(p.x,p.y,p.z).normalize();g.dm.up.copy(uv);g.dm.lookAt(a.x,a.y,a.z);g.dm.updateMatrix();g.mesh.setMatrixAt(i,g.dm.matrix);}g.mesh.instanceMatrix.needsUpdate=true;}
+    else{for(let i=0;i<g.count;i++){const rn=(g.pa[i]/g.planes)*Math.PI*2;const r=g.planeRs[g.pa[i]];const pf=0.08/(r/ER);const p=op(g.ph[i],t,pf,r,g.iR,rn);const a=op(g.ph[i]+0.02,t,pf,r,g.iR,rn);g.sats[i].position.set(p.x,p.y,p.z);g.sats[i].up.set(p.x,p.y,p.z).normalize();g.sats[i].lookAt(a.x,a.y,a.z);}}}
+  renderer.render(scene,camera);
+  // Project tilt label to screen space
+  const tlp=tiltLabelPos.clone().project(camera);
+  const tlEl=document.getElementById('tilt-label');
+  tlEl.style.left=(( tlp.x*0.5+0.5)*window.innerWidth+6)+'px';
+  tlEl.style.top=((-tlp.y*0.5+0.5)*window.innerHeight)+'px';
+  tlEl.style.display=tlp.z<1?'block':'none';
+}
 
 // Start everything
 init().then(() => animate());
