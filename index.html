@@ -237,21 +237,27 @@ async function init() {
   const safeTex=(url,rgba)=>new Promise(resolve=>{loader.load(url,resolve,undefined,()=>resolve(mkFallback(rgba)));});
   const BASE='https://threejs.org/examples/textures/planets/';
 
-  // Primary: NASA Blue Marble satellite imagery. Fallback: procedural TopoJSON map.
+  // Primary: 8K Solar System Scope. Fallback: 2K Three.js CDN, then procedural TopoJSON.
   loadBar.style.width='15%';
   let earthTex;
   try {
-    earthTex=await new Promise((resolve,reject)=>loader.load(BASE+'earth_atmos_2048.jpg',resolve,undefined,reject));
+    earthTex=await new Promise((resolve,reject)=>loader.load('references/inputs/8k_earth_daymap.jpg',resolve,undefined,reject));
     loadBar.style.width='60%';
   } catch(e) {
-    earthTex=await generateEarthTexture();
+    try {
+      earthTex=await new Promise((resolve,reject)=>loader.load(BASE+'earth_atmos_2048.jpg',resolve,undefined,reject));
+      loadBar.style.width='60%';
+    } catch(e2) {
+      earthTex=await generateEarthTexture();
+    }
   }
 
-  // Specular map (bright=ocean, dark=land) + city night lights
+  // Specular map (2K CDN) + city night lights (8K local, fallback 2K CDN)
   loadBar.style.width='75%';
   const [specMap,nightMap]=await Promise.all([
     safeTex(BASE+'earth_specular_2048.jpg',[0,0,0,255]),
-    safeTex(BASE+'earth_lights_2048.png',[0,0,0,255]),
+    new Promise(resolve=>loader.load('references/inputs/8k_earth_nightmap.jpg',resolve,undefined,
+      ()=>loader.load(BASE+'earth_lights_2048.png',resolve,undefined,()=>resolve(mkFallback([0,0,0,255]))))),
   ]);
   loadBar.style.width='100%';
   setTimeout(()=>loadingEl.classList.add('done'),300);
@@ -339,7 +345,7 @@ async function init() {
       obj=>{
         // Rotate so solar panels extend cross-track (±X) instead of fore-aft
         obj.rotation.y=-Math.PI/2;
-        obj.scale.setScalar(0.0015);
+        obj.scale.setScalar(0.00075);
 
         // Body (RS Standard.7) + topside surfaces (default) → silver
         // Solar panel arrays (RS Standard) → blue
@@ -466,14 +472,14 @@ const aM=new THREE.MeshPhongMaterial({color:0xcccccc,specular:0xffffff,shininess
 function aa(pr,g,m,x,y,z,rx,ry,rz){const o=new THREE.Mesh(g,m);o.position.set(x||0,y||0,z||0);if(rx)o.rotation.x=rx;if(ry)o.rotation.y=ry;if(rz)o.rotation.z=rz;pr.add(o);}
 function buildCubeSat(c){const g=new THREE.Group(),s=0.04;aa(g,new THREE.BoxGeometry(s,s,s*3),bMat(c),0,0,0);const p=new THREE.BoxGeometry(s*3,0.003,s*2.5);aa(g,p,pM,s*1.8,0,-s*0.4);aa(g,p.clone(),pM,-s*1.8,0,-s*0.4);const p2=new THREE.BoxGeometry(s*2.5,0.003,s*2.5);aa(g,p2,pM,0,s*1.5,-s*0.4,0,0,0.35);aa(g,p2.clone(),pM,0,-s*1.5,-s*0.4,0,0,-0.35);aa(g,new THREE.SphereGeometry(s*0.3,8,8),lM,0,0,s*1.55);aa(g,new THREE.BoxGeometry(s*0.15,s*0.15,s*0.5),aM,s*0.3,0,-s*1.7);return g;}
 function buildSkySat(c){const g=new THREE.Group(),s=0.065;aa(g,new THREE.BoxGeometry(s*1.2,s*1.2,s*2),bMat(c),0,0,0);aa(g,new THREE.BoxGeometry(s*1.22,s*1.22,0.002),gM,0,0,s*1.01);const w=new THREE.BoxGeometry(s*4,0.004,s*1.8);aa(g,w,pM,s*2.8,0,0);aa(g,w.clone(),pM,-s*2.8,0,0);aa(g,new THREE.SphereGeometry(s*0.28,8,8),lM,0,0,s*1.03);aa(g,new THREE.BoxGeometry(0.003,s*0.8,0.003),aM,s*0.4,s*0.9,s*0.5);return g;}
-function buildSmallSat(c){const g=new THREE.Group(),s=0.04;aa(g,new THREE.BoxGeometry(s*1.4,s*1.2,s*2.2),bMat(c),0,0,0);const w=new THREE.BoxGeometry(s*2.3,0.004,s*2);aa(g,w,pM,s*1.7,0,0);aa(g,w.clone(),pM,-s*1.7,0,0);aa(g,w.clone(),pM,s*3.9,0,0);aa(g,w.clone(),pM,-s*3.9,0,0);aa(g,new THREE.SphereGeometry(s*0.4,12,8,0,Math.PI*2,0,Math.PI*0.5),aM,0,s*0.8,-s*0.5,-0.15);aa(g,new THREE.SphereGeometry(s*0.4,10,10),lM,0,0,s*1.15);return g;}
+function buildSmallSat(c){const g=new THREE.Group(),s=0.02;aa(g,new THREE.BoxGeometry(s*1.4,s*1.2,s*2.2),bMat(c),0,0,0);const w=new THREE.BoxGeometry(s*2.3,0.004,s*2);aa(g,w,pM,s*1.7,0,0);aa(g,w.clone(),pM,-s*1.7,0,0);aa(g,w.clone(),pM,s*3.9,0,0);aa(g,w.clone(),pM,-s*3.9,0,0);aa(g,new THREE.SphereGeometry(s*0.4,12,8,0,Math.PI*2,0,Math.PI*0.5),aM,0,s*0.8,-s*0.5,-0.15);aa(g,new THREE.SphereGeometry(s*0.4,10,10),lM,0,0,s*1.15);return g;}
 function buildOwl(c){
   // Placeholder dot — replaced with real OBJ in init()
   const g=new THREE.Group();
   g.add(new THREE.Mesh(new THREE.SphereGeometry(0.018,6,6),new THREE.MeshPhongMaterial({color:new THREE.Color(c),emissive:new THREE.Color(c).multiplyScalar(0.4)})));
   return g;
 }
-function buildTanager(c){const g=new THREE.Group(),s=0.04;aa(g,new THREE.BoxGeometry(s*1.4,s*1.2,s*2.4),bMat(c),0,0,0);aa(g,new THREE.BoxGeometry(s*1.0,s*0.6,s*1.6),new THREE.MeshPhongMaterial({color:0x115533,emissive:0x041a0f,specular:0x226644,shininess:30}),0,-s*0.9,s*0.2);aa(g,new THREE.BoxGeometry(s*0.8,0.003,s*1.2),gM,0,-s*1.22,s*0.2);const w=new THREE.BoxGeometry(s*2.7,0.004,s*2);aa(g,w,pM,s*2,0,0);aa(g,w.clone(),pM,-s*2,0,0);aa(g,w.clone(),pM,s*4.4,0,0);aa(g,w.clone(),pM,-s*4.4,0,0);aa(g,new THREE.SphereGeometry(s*0.35,10,10),lM,0,0,s*1.25);return g;}
+function buildTanager(c){const g=new THREE.Group(),s=0.02;aa(g,new THREE.BoxGeometry(s*1.4,s*1.2,s*2.4),bMat(c),0,0,0);aa(g,new THREE.BoxGeometry(s*1.0,s*0.6,s*1.6),new THREE.MeshPhongMaterial({color:0x115533,emissive:0x041a0f,specular:0x226644,shininess:30}),0,-s*0.9,s*0.2);aa(g,new THREE.BoxGeometry(s*0.8,0.003,s*1.2),gM,0,-s*1.22,s*0.2);const w=new THREE.BoxGeometry(s*2.7,0.004,s*2);aa(g,w,pM,s*2,0,0);aa(g,w.clone(),pM,-s*2,0,0);aa(g,w.clone(),pM,s*4.4,0,0);aa(g,w.clone(),pM,-s*4.4,0,0);aa(g,new THREE.SphereGeometry(s*0.35,10,10),lM,0,0,s*1.25);return g;}
 function buildSat(sh,c){return({cubesat:buildCubeSat,skysat:buildSkySat,smallsat:buildSmallSat,owl:buildOwl,tanager:buildTanager}[sh]||buildCubeSat)(c);}
 
 function altToR(a){return ER+(a/6371)*ER;}
@@ -508,7 +514,7 @@ function uc(){const r=sp.radius;camera.position.set(r*Math.sin(sp.phi)*Math.sin(
 canvas.addEventListener('pointerdown',e=>{isDrag=true;pm={x:e.clientX,y:e.clientY};});
 window.addEventListener('pointermove',e=>{if(!isDrag)return;sp.theta-=(e.clientX-pm.x)*0.005;sp.phi=Math.max(0.2,Math.min(Math.PI-0.2,sp.phi+(e.clientY-pm.y)*0.005));pm={x:e.clientX,y:e.clientY};uc();});
 window.addEventListener('pointerup',()=>isDrag=false);
-canvas.addEventListener('wheel',e=>{e.preventDefault();sp.radius=Math.max(10,Math.min(50,sp.radius+e.deltaY*0.015));uc();},{passive:false});
+canvas.addEventListener('wheel',e=>{e.preventDefault();sp.radius=Math.max(ER+0.2,Math.min(50,sp.radius+e.deltaY*0.015));uc();},{passive:false});
 
 const tt=document.getElementById('tooltip'),rc=new THREE.Raycaster(),mv=new THREE.Vector2();
 canvas.addEventListener('mousemove',e=>{mv.x=(e.clientX/window.innerWidth)*2-1;mv.y=-(e.clientY/window.innerHeight)*2+1;rc.setFromCamera(mv,camera);let hit=false;for(const c of CONSTELLATIONS){if(!vis[c.name])continue;const g=groups[c.name];let its;if(g.inst){its=rc.intersectObject(g.mesh);}else{const al=[];g.sats.forEach(s=>s.traverse(ch=>{if(ch.isMesh)al.push(ch);}));its=rc.intersectObjects(al);}if(its.length>0){let tx=e.clientX+16,ty=e.clientY-10;if(tx+260>window.innerWidth)tx=e.clientX-270;if(ty+200>window.innerHeight)ty=e.clientY-200;tt.style.display='block';tt.style.left=tx+'px';tt.style.top=ty+'px';tt.querySelector('.tt-name').textContent=c.name;tt.querySelector('.tt-name').style.color=c.color;tt.querySelector('.tt-detail').innerHTML=`${c.description}<br><br><span style="color:#6b7280">Altitude:</span> ${c.altitude} km<br><span style="color:#6b7280">Fleet:</span> ${c.count} sats<br><span style="color:#6b7280">Size:</span> ${c.size}<br><span style="color:#6b7280">Resolution:</span> ${c.resolution}`;hit=true;break;}}if(!hit)tt.style.display='none';});
