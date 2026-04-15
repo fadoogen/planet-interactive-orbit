@@ -15,68 +15,43 @@
   #loading .bar{width:200px;height:2px;background:#1f1f2e;border-radius:2px;overflow:hidden;}
   #loading .bar-fill{height:100%;background:#6366f1;width:0%;transition:width 0.3s;}
   #ui-overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;}
-  #header{position:absolute;top:24px;left:36px;pointer-events:auto;}
-  #planet-logo{width:120px;display:block;margin-bottom:6px;filter:invert(1) hue-rotate(180deg);opacity:0.88;}
-  #header h2{font-family:'DM Sans',sans-serif;font-size:16px;font-weight:300;color:#f0f0f5;letter-spacing:0px;}
-  #controls{position:absolute;top:28px;right:36px;pointer-events:auto;display:flex;flex-direction:column;gap:6px;width:286px;max-height:calc(100vh - 100px);overflow-y:auto;overflow-x:hidden;padding-right:2px;}
-  #controls::-webkit-scrollbar{width:3px;}
-  #controls::-webkit-scrollbar-track{background:transparent;}
-  #controls::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px;}
-  .sat-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;transition:border-color 0.3s ease;backdrop-filter:blur(12px);}
-  .sat-header{display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;user-select:none;transition:background 0.2s;}
-  .sat-header:hover{background:rgba(255,255,255,0.04);}
-  .sat-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:all 0.3s ease;}
-  .sat-info{flex:1;display:flex;flex-direction:column;}
-  .sat-name{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#f0f0f5;}
-  .sat-meta{font-size:10px;color:#6b7280;margin-top:1px;}
-  .sat-count{font-family:'Space Mono',monospace;font-size:11px;color:#6b7280;}
-  .sat-chevron{font-size:15px;color:#4b5563;transition:transform 0.3s ease;line-height:1;margin-left:4px;display:inline-block;}
-  .sat-card.active .sat-chevron{transform:rotate(90deg);}
-  .sat-panel{max-height:0;overflow:hidden;transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1);}
-  .sat-card.active .sat-panel{max-height:800px;}
-  .sat-sat-img{width:100%;height:162px;object-fit:cover;object-position:center;display:block;border-top:1px solid rgba(255,255,255,0.06);}
-  .sat-img-placeholder{width:100%;height:48px;background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;}
-  .sat-img-placeholder span{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:2px;color:#2d3748;text-transform:uppercase;}
-  .sat-panel-body{padding:14px 16px 16px;}
-  .sat-full-desc{font-size:11px;color:#9ca3af;line-height:1.65;margin-bottom:13px;}
-  .sat-specs-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-bottom:14px;}
-  .spec-item{display:flex;flex-direction:column;}
-  .spec-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:#374151;margin-bottom:2px;}
-  .spec-value{font-size:11px;color:#d1d5db;line-height:1.3;}
-  .sat-vis-btn{width:100%;padding:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:6px;color:#6b7280;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
-  .sat-vis-btn:hover{background:rgba(255,255,255,0.1);color:#d1d5db;}
-  .sat-vis-btn.hidden-state{color:#4b5563;border-color:rgba(255,255,255,0.05);}
-  /* ── Left detail panel ── */
-  #sat-detail-panel{position:absolute;top:0;left:0;width:320px;height:100%;background:rgba(8,8,18,0.93);border-right:1px solid rgba(255,255,255,0.07);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);transform:translateX(-100%);transition:transform 0.45s cubic-bezier(0.4,0,0.2,1);pointer-events:auto;display:flex;flex-direction:column;overflow:hidden;}
-  #sat-detail-panel.visible{transform:translateX(0);}
-  #sdp-img-wrap{width:100%;height:300px;flex-shrink:0;position:relative;overflow:hidden;background:#080810;}
-  #sdp-img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;}
-  #sdp-video{width:100%;height:100%;object-fit:cover;display:block;}
-  #sdp-no-img{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
-  #sdp-no-img span{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#1f2937;}
-  #sdp-img-wrap::after{content:'';position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(transparent,rgba(8,8,18,0.93));pointer-events:none;}
-  #sdp-content{flex:1;padding:22px 24px 40px;overflow-y:auto;}
-  #sdp-content::-webkit-scrollbar{width:3px;}
-  #sdp-content::-webkit-scrollbar-track{background:transparent;}
-  #sdp-content::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px;}
-  #sdp-sat-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
-  #sdp-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
-  #sdp-name{font-family:'Space Mono',monospace;font-size:14px;letter-spacing:2.5px;text-transform:uppercase;line-height:1.1;}
-  #sdp-type-label{font-size:11px;color:#6b7280;margin-top:4px;}
-  #sdp-accent{height:1px;margin-bottom:16px;opacity:0.25;}
-  #sdp-desc{font-size:12px;color:#9ca3af;line-height:1.75;margin-bottom:22px;}
-  #sdp-specs{display:grid;grid-template-columns:1fr 1fr;gap:13px 18px;}
+  #header{position:absolute;top:28px;left:44px;pointer-events:auto;}
+  #planet-logo{width:110px;display:block;margin-bottom:5px;filter:invert(1) hue-rotate(180deg);opacity:0.88;}
+  #header h2{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:300;color:#9ca3af;letter-spacing:0px;}
+  /* ── Left detail panel (always visible) ── */
+  #sat-detail-panel{position:absolute;top:0;left:0;width:460px;height:100%;background:linear-gradient(to right,rgba(5,5,15,0.98) 0%,rgba(5,5,15,0.95) 65%,rgba(5,5,15,0) 100%);pointer-events:auto;display:flex;flex-direction:column;justify-content:flex-start;padding:160px 60px 100px 44px;overflow:hidden;cursor:ns-resize;user-select:none;}
+  #sdp-sat-header{margin-bottom:10px;}
+  #sdp-dot{display:none;}
+  #sdp-name{font-family:'Space Mono',monospace;font-size:56px;letter-spacing:1px;text-transform:uppercase;line-height:1.0;margin-bottom:10px;white-space:nowrap;overflow:visible;}
+  #sdp-type-label{font-size:11px;color:#6b7280;margin-bottom:24px;letter-spacing:1px;}
+  #sdp-accent{height:1px;margin-bottom:20px;opacity:0.3;}
+  #sdp-desc{font-size:12px;color:#9ca3af;line-height:1.85;margin-bottom:28px;}
+  #sdp-specs{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;}
   .sdp-spec-item{display:flex;flex-direction:column;}
-  .sdp-spec-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:#374151;margin-bottom:3px;}
-  .sdp-spec-value{font-size:12px;color:#e5e7eb;line-height:1.3;}
-  /* Shift header + info when panel is open */
-  #header{transition:left 0.45s cubic-bezier(0.4,0,0.2,1);}
-  #info-panel{transition:left 0.45s cubic-bezier(0.4,0,0.2,1);}
-  #info-panel{position:absolute;bottom:28px;left:36px;pointer-events:auto;display:flex;gap:32px;}
-  .info-block{display:flex;flex-direction:column;}
-  .info-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#4b5563;margin-bottom:3px;}
-  .info-value{font-size:14px;font-weight:300;color:#d1d5db;}
-  #speed-control{position:absolute;bottom:28px;right:36px;pointer-events:auto;display:flex;align-items:center;gap:12px;}
+  .sdp-spec-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:#374151;margin-bottom:2px;}
+  .sdp-spec-value{font-size:11px;color:#e5e7eb;line-height:1.3;}
+  /* ── Right vertical carousel (floating, no boxes) ── */
+  #sat-carousel{position:absolute;top:0;right:0;width:520px;height:calc(100% - 200px);pointer-events:auto;display:flex;align-items:center;justify-content:center;cursor:ns-resize;user-select:none;overflow:visible;}
+  #sat-carousel::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(to bottom,rgba(5,5,15,0.7) 0%,rgba(5,5,15,0.3) 15%,transparent 32%,transparent 68%,rgba(5,5,15,0.3) 85%,rgba(5,5,15,0.7) 100%);pointer-events:none;z-index:5;}
+  .carousel-item{position:absolute;width:460px;transition:transform 0.42s cubic-bezier(0.4,0,0.2,1),opacity 0.42s ease;pointer-events:none;}
+  .carousel-item img{width:100%;display:block;object-fit:contain;max-height:600px;}
+  /* ── Bottom nav ── */
+  #bottom-nav{position:absolute;bottom:0;left:0;right:0;height:200px;background:rgba(5,5,15,0.45);border-top:1px solid rgba(255,255,255,0.06);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);pointer-events:auto;display:flex;align-items:stretch;padding:0 36px;gap:0;}
+  .nav-all-btn{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:0 44px 0 0;gap:12px;cursor:pointer;border-right:1px solid rgba(255,255,255,0.08);margin-right:40px;flex-shrink:0;}
+  .nav-all-label{font-family:'Space Mono',monospace;font-size:26px;letter-spacing:2px;text-transform:uppercase;color:#6b7280;transition:color 0.2s;}
+  .nav-all-btn:hover .nav-all-label{color:#d1d5db;}
+  .nav-sat-entry{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:0 20px;gap:16px;cursor:pointer;flex:1;transition:background 0.2s;border-radius:8px;}
+  .nav-sat-entry:hover{background:rgba(255,255,255,0.03);}
+  .nav-sat-top{display:flex;align-items:center;gap:14px;}
+  .nav-sat-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;opacity:0.4;transition:opacity 0.25s;}
+  .nav-sat-entry.active .nav-sat-dot{opacity:1;}
+  .nav-sat-name{font-family:'Space Mono',monospace;font-size:22px;letter-spacing:1.5px;text-transform:uppercase;color:#6b7280;transition:color 0.25s;white-space:nowrap;}
+  .nav-sat-controls{display:flex;gap:14px;}
+  .nav-toggle-btn{font-family:'Space Mono',monospace;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;padding:10px 22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#4b5563;cursor:pointer;transition:all 0.2s;pointer-events:auto;}
+  .nav-toggle-btn:hover{color:#d1d5db;background:rgba(255,255,255,0.1);}
+  .nav-toggle-btn.off-state{opacity:0.28;}
+  /* Speed control */
+  #speed-control{position:absolute;bottom:212px;left:420px;pointer-events:auto;display:flex;align-items:center;gap:12px;}
   #speed-control label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#4b5563;}
   #speed-slider{-webkit-appearance:none;width:100px;height:2px;background:#333;border-radius:2px;outline:none;}
   #speed-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#6366f1;cursor:pointer;}
@@ -95,28 +70,18 @@
 <canvas id="c"></canvas>
 <div id="ui-overlay">
   <div id="sat-detail-panel">
-    <div id="sdp-img-wrap">
-      <video id="sdp-video" autoplay loop muted playsinline style="display:none"></video>
-      <img id="sdp-img" src="" alt="" style="display:none">
-      <div id="sdp-no-img"><span>No media available</span></div>
+    <div id="sdp-sat-header">
+      <div id="sdp-dot"></div>
+      <div id="sdp-name"></div>
+      <div id="sdp-type-label"></div>
     </div>
-    <div id="sdp-content">
-      <div id="sdp-sat-header">
-        <div id="sdp-dot"></div>
-        <div><div id="sdp-name"></div><div id="sdp-type-label"></div></div>
-      </div>
-      <div id="sdp-accent"></div>
-      <p id="sdp-desc"></p>
-      <div id="sdp-specs"></div>
-    </div>
+    <div id="sdp-accent"></div>
+    <p id="sdp-desc"></p>
+    <div id="sdp-specs"></div>
   </div>
+  <div id="sat-carousel"></div>
   <div id="header"><img id="planet-logo" src="references/inputs/planet-labs-seeklogo.png" alt="Planet Labs"><h2>Satellite Constellation Viewer</h2></div>
-  <div id="controls"></div>
-  <div id="info-panel">
-    <div class="info-block"><span class="info-label">Active Sats</span><span class="info-value" id="sat-total">0</span></div>
-    <div class="info-block"><span class="info-label">Orbit Type</span><span class="info-value">Sun-Synchronous</span></div>
-    <div class="info-block"><span class="info-label">Drag to Rotate</span><span class="info-value">Scroll to Zoom</span></div>
-  </div>
+  <div id="bottom-nav"></div>
   <div id="speed-control"><label>Speed</label><input type="range" id="speed-slider" min="0.1" max="5" step="0.1" value="0.4"><span id="speed-val">0.4×</span></div>
   <div id="tooltip"><div class="tt-name"></div><div class="tt-detail"></div></div>
   <div id="tilt-label">23.5°</div>
@@ -275,7 +240,7 @@ const CONSTELLATIONS = [
     name:'SuperDove', color:'#22d3ee', altitude:500, count:200, inclination:97.4, planes:8,
     description:'3U CubeSat, 3m resolution, 8 spectral bands. Flagship daily global monitoring fleet.',
     size:'10×10×30cm CubeSat ~5kg', resolution:'3m multispectral', shape:'cubesat',
-    image:'references/inputs/Dove-beauty.png',
+    image:'references/inputs/Dove.png',
     video:'references/inputs/dove-spin.mp4',
     fullDesc:"Planet's flagship daily imaging fleet. Each SuperDove (PlanetScope) captures the entire Earth landmass every day across 8 spectral bands — coastal blue through near-infrared. Widely used for deforestation tracking, precision agriculture, disaster response, and urban change detection at global scale.",
     specs:[
@@ -293,7 +258,7 @@ const CONSTELLATIONS = [
     name:'SkySat', color:'#f97316', altitude:450, count:21, inclination:97.0, planes:3,
     description:'High-res tasking satellite, 50cm imagery, video capture. Mini-fridge sized.',
     size:'60×60×80cm ~110kg', resolution:'50cm panchromatic', shape:'skysat',
-    image:null, video:null,
+    image:'references/inputs/SkySat.png', video:null,
     fullDesc:"High-resolution agile tasking satellite capable of 50 cm panchromatic and sub-1 m multispectral imagery on demand. Equipped for HD video capture up to 90 seconds, enabling dynamic change detection and persistent monitoring of critical infrastructure and events.",
     specs:[
       {label:'Dimensions', value:'60×60×95 cm'},
@@ -310,7 +275,7 @@ const CONSTELLATIONS = [
     name:'Pelican', color:'#a78bfa', altitude:475, count:6, inclination:97.2, planes:2,
     description:'Next-gen high-res tasking. 30-40cm class, NVIDIA Jetson AI edge compute.',
     size:'SmallSat platform ~150kg', resolution:'30-40cm multispectral', shape:'smallsat',
-    image:null, video:null,
+    image:'references/inputs/Pelican.png', video:null,
     fullDesc:"Next-generation high-resolution tasking platform with onboard NVIDIA Jetson AI edge computing for in-orbit machine learning inference. Targets 30–40 cm imagery with broadened spectral coverage, designed as the long-term successor to SkySat with substantially greater capability.",
     specs:[
       {label:'Platform', value:'SmallSat'},
@@ -327,7 +292,7 @@ const CONSTELLATIONS = [
     name:'Owl', color:'#facc15', altitude:510, count:4, inclination:97.5, planes:2,
     description:'Next-gen monitoring fleet. 1m class, 60km+ swath, near-daily revisit.',
     size:'SmallSat platform', resolution:'1m class, 60km swath', shape:'owl',
-    image:null, video:null,
+    image:'references/inputs/OWL01.png', video:null,
     fullDesc:"Next-generation wide-area monitoring satellite featuring a 1-meter class imager with a 60+ km swath width. Complements the SuperDove fleet by delivering higher-resolution coverage across vast areas with near-daily revisit cadence for regional change tracking.",
     specs:[
       {label:'Platform', value:'SmallSat'},
@@ -342,7 +307,7 @@ const CONSTELLATIONS = [
     name:'Tanager', color:'#34d399', altitude:522, count:2, inclination:97.6, planes:1,
     description:'Hyperspectral, 400+ bands (400-2500nm). Methane & CO₂ detection via JPL spectrometer.',
     size:'SmallSat platform', resolution:'30m, 420 spectral bands', shape:'tanager',
-    image:null, video:null,
+    image:'references/inputs/Tanager.png', video:null,
     fullDesc:"Hyperspectral science satellite developed in partnership with NASA JPL. Carries a shortwave-infrared spectrometer spanning 400–2500 nm across 420+ spectral bands — enabling precise methane leak detection, CO₂ monitoring, and global greenhouse gas tracking directly from orbit.",
     specs:[
       {label:'Platform', value:'SmallSat'},
@@ -641,10 +606,10 @@ CONSTELLATIONS.forEach(c=>{
   scene.add(g);vis[c.name]=true;
 });
 
-// UI — accordion legend with details panel
-const ce=document.getElementById('controls');
-let activeSelection=null;
-const cardMap={};
+// ── New UI ──────────────────────────────────────────────────────
+let selectedIndex=0;
+const orbitVis={};
+CONSTELLATIONS.forEach(c=>{orbitVis[c.name]=true;});
 
 function applyHighlight(sel){
   CONSTELLATIONS.forEach(c=>{
@@ -655,9 +620,10 @@ function applyHighlight(sel){
     g.g.traverse(obj=>{
       if(!obj.material)return;
       if(obj.isLine){
+        if(!orbitVis[c.name]){obj.visible=false;return;}
+        obj.visible=true;
         obj.material.opacity=dim?0.02:boost?0.55:0.12;
       }else if(obj.isMesh){
-        // Snapshot original emissive once so we can restore it
         if(!obj.material._origEmissive){
           obj.material._origEmissive=obj.material.emissive.clone();
         }
@@ -674,42 +640,17 @@ function applyHighlight(sel){
   });
 }
 
-// Left detail panel refs
+// Left panel refs
 const sdp=document.getElementById('sat-detail-panel');
-const sdpVideo=document.getElementById('sdp-video');
-const sdpImg=document.getElementById('sdp-img');
-const sdpNoImg=document.getElementById('sdp-no-img');
 const sdpDot=document.getElementById('sdp-dot');
 const sdpName=document.getElementById('sdp-name');
 const sdpTypeLbl=document.getElementById('sdp-type-label');
 const sdpAccent=document.getElementById('sdp-accent');
 const sdpDesc=document.getElementById('sdp-desc');
 const sdpSpecs=document.getElementById('sdp-specs');
-const hdr=document.getElementById('header');
-const infoPnl=document.getElementById('info-panel');
 
-function showDetailPanel(c){
+function updateLeftPanel(c){
   const tl=c.shape==='cubesat'?'3U CubeSat':c.shape==='skysat'?'MiniSat':'SmallSat';
-  // Media: video > image > placeholder
-  if(c.video){
-    sdpVideo.src=c.video;
-    sdpVideo.style.display='block';
-    sdpImg.style.display='none';
-    sdpNoImg.style.display='none';
-    sdpVideo.load();
-    sdpVideo.play().catch(()=>{});
-  }else if(c.image){
-    sdpVideo.style.display='none';
-    sdpVideo.pause();sdpVideo.src='';
-    sdpImg.src=c.image;
-    sdpImg.style.display='block';
-    sdpNoImg.style.display='none';
-  }else{
-    sdpVideo.style.display='none';
-    sdpVideo.pause();sdpVideo.src='';
-    sdpImg.style.display='none';
-    sdpNoImg.style.display='flex';
-  }
   sdpDot.style.background=c.color;
   sdpDot.style.boxShadow=`0 0 10px ${c.color}88`;
   sdpName.textContent=c.name;
@@ -718,77 +659,148 @@ function showDetailPanel(c){
   sdpAccent.style.background=c.color;
   sdpDesc.textContent=c.fullDesc;
   sdpSpecs.innerHTML=c.specs.map(s=>`<div class="sdp-spec-item"><span class="sdp-spec-label">${s.label}</span><span class="sdp-spec-value">${s.value}</span></div>`).join('');
-  sdp.classList.add('visible');
-  hdr.style.left='356px';
-  infoPnl.style.left='356px';
-}
-function hideDetailPanel(){
-  sdp.classList.remove('visible');
-  sdpVideo.pause();
-  sdpVideo.src='';
-  hdr.style.left='36px';
-  infoPnl.style.left='36px';
 }
 
-CONSTELLATIONS.forEach(c=>{
-  const card=document.createElement('div');
-  card.className='sat-card';
-  cardMap[c.name]=card;
-  const tl=c.shape==='cubesat'?'3U CubeSat':c.shape==='skysat'?'MiniSat':'SmallSat';
-  const imgHtml=c.image
-    ?`<img class="sat-sat-img" src="${c.image}" alt="${c.name}">`
-    :`<div class="sat-img-placeholder"><span>No image available</span></div>`;
-  const specsHtml=c.specs.map(s=>`<div class="spec-item"><span class="spec-label">${s.label}</span><span class="spec-value">${s.value}</span></div>`).join('');
-  card.innerHTML=
-    `<div class="sat-header">`+
-      `<div class="sat-dot" style="background:${c.color};box-shadow:0 0 8px ${c.color}88;"></div>`+
-      `<div class="sat-info"><span class="sat-name">${c.name}</span><span class="sat-meta">${c.altitude}km \u00b7 ${tl}</span></div>`+
-      `<span class="sat-count">${c.count}</span>`+
-      `<span class="sat-chevron">&#8250;</span>`+
-    `</div>`+
-    `<div class="sat-panel">`+
-      imgHtml+
-      `<div class="sat-panel-body">`+
-        `<p class="sat-full-desc">${c.fullDesc}</p>`+
-        `<div class="sat-specs-grid">${specsHtml}</div>`+
-        `<button class="sat-vis-btn">Hide ${c.name}</button>`+
-      `</div>`+
-    `</div>`;
-
-  card.querySelector('.sat-header').addEventListener('click',()=>{
-    if(activeSelection===c.name){
-      card.classList.remove('active');
-      card.style.borderColor='';
-      activeSelection=null;
-      applyHighlight(null);
-      hideDetailPanel();
-    }else{
-      if(activeSelection&&cardMap[activeSelection]){
-        cardMap[activeSelection].classList.remove('active');
-        cardMap[activeSelection].style.borderColor='';
-      }
-      card.classList.add('active');
-      card.style.borderColor=c.color+'55';
-      activeSelection=c.name;
-      applyHighlight(c.name);
-      showDetailPanel(c);
-    }
-  });
-
-  const vb=card.querySelector('.sat-vis-btn');
-  vb.addEventListener('click',()=>{
-    vis[c.name]=!vis[c.name];
-    groups[c.name].g.visible=vis[c.name];
-    vb.textContent=vis[c.name]?`Hide ${c.name}`:`Show ${c.name}`;
-    vb.classList.toggle('hidden-state',!vis[c.name]);
-    applyHighlight(activeSelection);
-    ut();
-  });
-
-  ce.appendChild(card);
+// Right vertical carousel
+const carouselEl=document.getElementById('sat-carousel');
+const carouselItems=CONSTELLATIONS.map(c=>{
+  const item=document.createElement('div');
+  item.className='carousel-item';
+  const img=document.createElement('img');
+  img.src=c.image||'';
+  img.alt=c.name;
+  item.appendChild(img);
+  carouselEl.appendChild(item);
+  return item;
 });
 
-function ut(){let t=0;CONSTELLATIONS.forEach(c=>{if(vis[c.name])t+=c.count;});document.getElementById('sat-total').textContent=t;}ut();
+function updateCarousel(){
+  const step=300;
+  const n=CONSTELLATIONS.length;
+  carouselItems.forEach((item,i)=>{
+    // Circular offset: shortest path around the loop
+    let off=i-selectedIndex;
+    if(off>n/2)off-=n;
+    if(off<-n/2)off+=n;
+    const absOff=Math.abs(off);
+    let sc,op,zi;
+    if(absOff===0){sc=1.0;op=1.0;zi=4;}
+    else if(absOff===1){sc=0.48;op=0.45;zi=3;}
+    else{sc=0.28;op=0.0;zi=2;}
+    item.style.transform=`translateY(${off*step}px) scale(${sc})`;
+    item.style.opacity=op;
+    item.style.zIndex=zi;
+  });
+}
+
+// Bottom nav
+const bottomNav=document.getElementById('bottom-nav');
+const navAllBtn=document.createElement('div');
+navAllBtn.className='nav-all-btn';
+navAllBtn.innerHTML=
+  `<span class="nav-all-label">ALL</span>`+
+  `<span id="sat-total" style="font-family:'Space Mono',monospace;font-size:9px;color:#4b5563;letter-spacing:1px;">0</span>`;
+navAllBtn.addEventListener('click',()=>{
+  CONSTELLATIONS.forEach(c=>{
+    vis[c.name]=true;groups[c.name].g.visible=true;
+    orbitVis[c.name]=true;
+    groups[c.name].g.traverse(obj=>{if(obj.isLine)obj.visible=true;});
+    const entry=navEntries[c.name];
+    if(entry){
+      entry.querySelector('.orbit-btn').classList.remove('off-state');
+      const vb=entry.querySelector('.vis-btn');
+      vb.textContent='ON';vb.classList.remove('off-state');
+    }
+  });
+  applyHighlight(null);
+  updateBottomNavState();
+  ut();
+});
+bottomNav.appendChild(navAllBtn);
+
+const navEntries={};
+CONSTELLATIONS.forEach((c,i)=>{
+  const entry=document.createElement('div');
+  entry.className='nav-sat-entry';
+  entry.innerHTML=
+    `<div class="nav-sat-top">`+
+      `<span class="nav-sat-dot" style="background:${c.color};box-shadow:0 0 5px ${c.color}88"></span>`+
+      `<span class="nav-sat-name">${c.name}</span>`+
+    `</div>`+
+    `<div class="nav-sat-controls">`+
+      `<button class="nav-toggle-btn orbit-btn" style="color:${c.color}88;border-color:${c.color}33">Orbit</button>`+
+      `<button class="nav-toggle-btn vis-btn" style="color:${c.color}88;border-color:${c.color}33">ON</button>`+
+    `</div>`;
+  entry.addEventListener('click',e=>{
+    if(e.target.classList.contains('orbit-btn')||e.target.classList.contains('vis-btn'))return;
+    setSelected(i,true);
+  });
+  const orbitBtn=entry.querySelector('.orbit-btn');
+  orbitBtn.addEventListener('click',e=>{
+    e.stopPropagation();
+    orbitVis[c.name]=!orbitVis[c.name];
+    groups[c.name].g.traverse(obj=>{if(obj.isLine)obj.visible=orbitVis[c.name];});
+    orbitBtn.classList.toggle('off-state',!orbitVis[c.name]);
+  });
+  const visBtn=entry.querySelector('.vis-btn');
+  visBtn.addEventListener('click',e=>{
+    e.stopPropagation();
+    vis[c.name]=!vis[c.name];
+    groups[c.name].g.visible=vis[c.name];
+    visBtn.textContent=vis[c.name]?'ON':'OFF';
+    visBtn.classList.toggle('off-state',!vis[c.name]);
+    applyHighlight(CONSTELLATIONS[selectedIndex].name);
+    ut();
+  });
+  navEntries[c.name]=entry;
+  bottomNav.appendChild(entry);
+});
+
+function updateBottomNavState(){
+  CONSTELLATIONS.forEach((c,i)=>{
+    const entry=navEntries[c.name];
+    const nameEl=entry.querySelector('.nav-sat-name');
+    if(i===selectedIndex){
+      nameEl.style.color=c.color;
+      entry.classList.add('active');
+    }else{
+      nameEl.style.color='#6b7280';
+      entry.classList.remove('active');
+    }
+  });
+}
+
+function setSelected(idx,doHighlight){
+  selectedIndex=((idx%CONSTELLATIONS.length)+CONSTELLATIONS.length)%CONSTELLATIONS.length;
+  const c=CONSTELLATIONS[selectedIndex];
+  updateLeftPanel(c);
+  updateCarousel();
+  updateBottomNavState();
+  if(doHighlight)applyHighlight(c.name);
+}
+
+// Drag state
+let carDrag=false,carDragY=0,carDragAcc=0;
+let ldDrag=false,ldDragY=0,ldDragAcc=0;
+
+carouselEl.addEventListener('mousedown',e=>{carDrag=true;carDragY=e.clientY;carDragAcc=0;e.preventDefault();});
+sdp.addEventListener('mousedown',e=>{ldDrag=true;ldDragY=e.clientY;ldDragAcc=0;e.preventDefault();});
+// Scroll wheel on carousel and left panel
+let wheelCooldown=false;
+function onSatWheel(e){e.preventDefault();if(wheelCooldown)return;wheelCooldown=true;setTimeout(()=>{wheelCooldown=false;},280);setSelected(selectedIndex+(e.deltaY>0?1:-1),true);}
+carouselEl.addEventListener('wheel',onSatWheel,{passive:false});
+sdp.addEventListener('wheel',onSatWheel,{passive:false});
+window.addEventListener('mousemove',e=>{
+  if(carDrag){const dy=e.clientY-carDragY;carDragY=e.clientY;carDragAcc+=dy;if(Math.abs(carDragAcc)>=55){setSelected(selectedIndex+(carDragAcc<0?1:-1),true);carDragAcc=0;}}
+  if(ldDrag){const dy=e.clientY-ldDragY;ldDragY=e.clientY;ldDragAcc+=dy;if(Math.abs(ldDragAcc)>=55){setSelected(selectedIndex+(ldDragAcc<0?1:-1),true);ldDragAcc=0;}}
+});
+window.addEventListener('mouseup',()=>{carDrag=false;ldDrag=false;});
+
+// Init
+setSelected(0,true);
+
+function ut(){let t=0;CONSTELLATIONS.forEach(c=>{if(vis[c.name])t+=c.count;});const el=document.getElementById('sat-total');if(el)el.textContent=t;}
+ut();
 document.getElementById('speed-slider').addEventListener('input',function(){spd=parseFloat(this.value);document.getElementById('speed-val').textContent=spd.toFixed(1)+'×';});
 
 let tiltLabelPos=new THREE.Vector3();
